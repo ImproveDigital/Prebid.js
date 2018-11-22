@@ -11,6 +11,7 @@ import { userSync } from 'src/userSync.js';
 import { loadScript } from './adloader';
 import { setAjaxTimeout } from './ajax';
 import { config } from './config';
+import { createHook } from 'src/hook';
 
 var $$PREBID_GLOBAL$$ = getGlobal();
 
@@ -365,7 +366,7 @@ $$PREBID_GLOBAL$$.clearAuction = function() {
  * @param {Array} requestOptions.adUnitCodes
  * @alias module:pbjs.requestBids
  */
-$$PREBID_GLOBAL$$.requestBids = function ({ bidsBackHandler, timeout, adUnits, adUnitCodes } = {}) {
+$$PREBID_GLOBAL$$.requestBids = createHook('asyncSeries', function ({ bidsBackHandler, timeout, adUnits, adUnitCodes } = {}) {
   events.emit('requestBids');
   const cbTimeout = $$PREBID_GLOBAL$$.cbTimeout = timeout || config.getConfig('bidderTimeout');
   adUnits = adUnits || $$PREBID_GLOBAL$$.adUnits;
@@ -437,7 +438,7 @@ $$PREBID_GLOBAL$$.requestBids = function ({ bidsBackHandler, timeout, adUnits, a
   if ($$PREBID_GLOBAL$$._bidsRequested.length === 0) {
     bidmanager.executeCallback();
   }
-};
+});
 
 /**
  *

@@ -37,110 +37,113 @@ const ALL_TOPICS = '*';
 
 export function newConfig() {
   let listeners = [];
+  let defaults;
+  let config;
 
-  let defaults = {};
-
-  let config = {
-    // `debug` is equivalent to legacy `pbjs.logging` property
-    _debug: DEFAULT_DEBUG,
-    get debug() {
-      if ($$PREBID_GLOBAL$$.logging || $$PREBID_GLOBAL$$.logging === false) {
-        return $$PREBID_GLOBAL$$.logging;
-      }
-      return this._debug;
-    },
-    set debug(val) {
-      this._debug = val;
-    },
-
-    // default timeout for all bids
-    _bidderTimeout: DEFAULT_BIDDER_TIMEOUT,
-    get bidderTimeout() {
-      return $$PREBID_GLOBAL$$.bidderTimeout || this._bidderTimeout;
-    },
-    set bidderTimeout(val) {
-      this._bidderTimeout = val;
-    },
-
-    // domain where prebid is running for cross domain iframe communication
-    _publisherDomain: DEFAULT_PUBLISHER_DOMAIN,
-    get publisherDomain() {
-      return $$PREBID_GLOBAL$$.publisherDomain || this._publisherDomain;
-    },
-    set publisherDomain(val) {
-      this._publisherDomain = val;
-    },
-
-    // delay to request cookie sync to stay out of critical path
-    _cookieSyncDelay: DEFAULT_COOKIESYNC_DELAY,
-    get cookieSyncDelay() {
-      return $$PREBID_GLOBAL$$.cookieSyncDelay || this._cookieSyncDelay;
-    },
-    set cookieSyncDelay(val) {
-      this._cookieSyncDelay = val;
-    },
-
-    // calls existing function which may be moved after deprecation
-    _priceGranularity: GRANULARITY_OPTIONS.MEDIUM,
-    set priceGranularity(val) {
-      if (validatePriceGranularity(val)) {
-        if (typeof val === 'string') {
-          this._priceGranularity = (hasGranularity(val)) ? val : GRANULARITY_OPTIONS.MEDIUM;
-        } else if (typeof val === 'object') {
-          this._customPriceBucket = val;
-          this._priceGranularity = GRANULARITY_OPTIONS.CUSTOM;
-          utils.logMessage('Using custom price granularity');
+  function resetConfig() {
+    defaults = {};
+    config = {
+      // `debug` is equivalent to legacy `pbjs.logging` property
+      _debug: DEFAULT_DEBUG,
+      get debug() {
+        if ($$PREBID_GLOBAL$$.logging || $$PREBID_GLOBAL$$.logging === false) {
+          return $$PREBID_GLOBAL$$.logging;
         }
+        return this._debug;
+      },
+      set debug(val) {
+        this._debug = val;
+      },
+
+      // default timeout for all bids
+      _bidderTimeout: DEFAULT_BIDDER_TIMEOUT,
+      get bidderTimeout() {
+        return $$PREBID_GLOBAL$$.bidderTimeout || this._bidderTimeout;
+      },
+      set bidderTimeout(val) {
+        this._bidderTimeout = val;
+      },
+
+      // domain where prebid is running for cross domain iframe communication
+      _publisherDomain: DEFAULT_PUBLISHER_DOMAIN,
+      get publisherDomain() {
+        return $$PREBID_GLOBAL$$.publisherDomain || this._publisherDomain;
+      },
+      set publisherDomain(val) {
+        this._publisherDomain = val;
+      },
+
+      // delay to request cookie sync to stay out of critical path
+      _cookieSyncDelay: DEFAULT_COOKIESYNC_DELAY,
+      get cookieSyncDelay() {
+        return $$PREBID_GLOBAL$$.cookieSyncDelay || this._cookieSyncDelay;
+      },
+      set cookieSyncDelay(val) {
+        this._cookieSyncDelay = val;
+      },
+
+      // calls existing function which may be moved after deprecation
+      _priceGranularity: GRANULARITY_OPTIONS.MEDIUM,
+      set priceGranularity(val) {
+        if (validatePriceGranularity(val)) {
+          if (typeof val === 'string') {
+            this._priceGranularity = (hasGranularity(val)) ? val : GRANULARITY_OPTIONS.MEDIUM;
+          } else if (typeof val === 'object') {
+            this._customPriceBucket = val;
+            this._priceGranularity = GRANULARITY_OPTIONS.CUSTOM;
+            utils.logMessage('Using custom price granularity');
+          }
+        }
+      },
+      get priceGranularity() {
+        return this._priceGranularity;
+      },
+
+      _customPriceBucket: {},
+      get customPriceBucket() {
+        return this._customPriceBucket;
+      },
+
+      _sendAllBids: DEFAULT_ENABLE_SEND_ALL_BIDS,
+      get enableSendAllBids() {
+        return this._sendAllBids;
+      },
+      set enableSendAllBids(val) {
+        this._sendAllBids = val;
+      },
+
+      // calls existing function which may be moved after deprecation
+      set bidderSequence(val) {
+        $$PREBID_GLOBAL$$.setBidderSequence(val);
+      },
+
+      // calls existing function which may be moved after deprecation
+      set s2sConfig(val) {
+        $$PREBID_GLOBAL$$.setS2SConfig(val);
       }
-    },
-    get priceGranularity() {
-      return this._priceGranularity;
-    },
+    };
 
-    _customPriceBucket: {},
-    get customPriceBucket() {
-      return this._customPriceBucket;
-    },
-
-    _sendAllBids: DEFAULT_ENABLE_SEND_ALL_BIDS,
-    get enableSendAllBids() {
-      return this._sendAllBids;
-    },
-    set enableSendAllBids(val) {
-      this._sendAllBids = val;
-    },
-
-    // calls existing function which may be moved after deprecation
-    set bidderSequence(val) {
-      $$PREBID_GLOBAL$$.setBidderSequence(val);
-    },
-
-    // calls existing function which may be moved after deprecation
-    set s2sConfig(val) {
-      $$PREBID_GLOBAL$$.setS2SConfig(val);
+    function hasGranularity(val) {
+      return Object.keys(GRANULARITY_OPTIONS).find(option => val === GRANULARITY_OPTIONS[option]);
     }
-  };
 
-  function hasGranularity(val) {
-    return Object.keys(GRANULARITY_OPTIONS).find(option => val === GRANULARITY_OPTIONS[option]);
-  }
-
-  function validatePriceGranularity(val) {
-    if (!val) {
-      utils.logError('Prebid Error: no value passed to `setPriceGranularity()`');
-      return false;
-    }
-    if (typeof val === 'string') {
-      if (!hasGranularity(val)) {
-        utils.logWarn('Prebid Warning: setPriceGranularity was called with invalid setting, using `medium` as default.');
-      }
-    } else if (typeof val === 'object') {
-      if (!isValidPriceConfig(val)) {
-        utils.logError('Invalid custom price value passed to `setPriceGranularity()`');
+    function validatePriceGranularity(val) {
+      if (!val) {
+        utils.logError('Prebid Error: no value passed to `setPriceGranularity()`');
         return false;
       }
+      if (typeof val === 'string') {
+        if (!hasGranularity(val)) {
+          utils.logWarn('Prebid Warning: setPriceGranularity was called with invalid setting, using `medium` as default.');
+        }
+      } else if (typeof val === 'object') {
+        if (!isValidPriceConfig(val)) {
+          utils.logError('Invalid custom price value passed to `setPriceGranularity()`');
+          return false;
+        }
+      }
+      return true;
     }
-    return true;
   }
 
   /*
@@ -264,10 +267,13 @@ export function newConfig() {
       .forEach(listener => listener.callback(options));
   }
 
+  resetConfig();
+
   return {
     getConfig,
     setConfig,
-    setDefaults
+    setDefaults,
+    resetConfig
   };
 }
 

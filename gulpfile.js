@@ -31,15 +31,15 @@ var fs = require('fs');
 var jsEscape = require('gulp-js-escape');
 
 var prebid = require('./package.json');
-var dateString = 'Updated : ' + (new Date()).toISOString().substring(0, 10);
-var banner = '/* <%= prebid.name %> v<%= prebid.version %>\n' + dateString + ' */\n';
+var dateString = 'Updated : ' + (new Date()).toISOString().substring(0, 16);
+var banner = '/* <%= prebid.name %> v<%= prebid.version %> with GDPR\n' + dateString + ' */\n';
 var analyticsDirectory = '../analytics';
 var port = 9999;
 
 // Tasks
 gulp.task('default', ['webpack']);
 
-gulp.task('serve', ['lint', 'build-bundle-dev', 'watch', 'test']);
+gulp.task('serve', ['build-bundle-dev', 'watch']);
 
 gulp.task('serve-nw', ['lint', 'watch', 'e2etest']);
 

@@ -204,6 +204,12 @@ exports.callBids = ({adUnits, cbTimeout}) => {
     }
   });
 
+  if (exports.gdprDataHandler.getConsentData()) {
+    _bidderRequests.forEach(bidRequest => {
+      bidRequest['gdprConsent'] = exports.gdprDataHandler.getConsentData();
+    });
+  }
+
   _bidderRequests.forEach(bidRequest => {
     bidRequest.start = new Date().getTime();
     const adapter = _bidderRegistry[bidRequest.bidderCode];
@@ -300,6 +306,16 @@ exports.registerAnalyticsAdapter = function ({adapter, code}) {
     }
   } else {
     utils.logError('Prebid Error: analyticsAdapter or analyticsCode not specified');
+  }
+};
+
+exports.gdprDataHandler = {
+  consentData: null,
+  setConsentData: function(consentInfo) {
+    this.consentData = consentInfo;
+  },
+  getConsentData: function() {
+    return this.consentData;
   }
 };
 

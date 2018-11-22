@@ -8,6 +8,7 @@ var t_Arr = 'Array';
 var t_Str = 'String';
 var t_Fn = 'Function';
 var t_Numb = 'Number';
+var t_Object = 'Object';
 var toString = Object.prototype.toString;
 let infoLogger = null;
 try {
@@ -102,6 +103,35 @@ exports.transformAdServerTargetingObj = function (targeting) {
     return '';
   }
 };
+
+/**
+ * Read an adUnit object and return the sizes used in an [[728, 90]] format (even if they had [728, 90] defined)
+ * Preference is given to the `adUnit.mediaTypes.banner.sizes` object over the `adUnit.sizes`
+ * @param {object} adUnit one adUnit object from the normal list of adUnits
+ * @returns {array[array[number]]} array of arrays containing numeric sizes
+ */
+export function getAdUnitSizes(adUnit) {
+  if (!adUnit) {
+    return;
+  }
+
+  let sizes = [];
+  if (adUnit.mediaTypes && adUnit.mediaTypes.banner && Array.isArray(adUnit.mediaTypes.banner.sizes)) {
+    let bannerSizes = adUnit.mediaTypes.banner.sizes;
+    if (Array.isArray(bannerSizes[0])) {
+      sizes = bannerSizes;
+    } else {
+      sizes.push(bannerSizes);
+    }
+  } else if (Array.isArray(adUnit.sizes)) {
+    if (Array.isArray(adUnit.sizes[0])) {
+      sizes = adUnit.sizes;
+    } else {
+      sizes.push(adUnit.sizes);
+    }
+  }
+  return sizes;
+}
 
 /**
  * Parse a GPT-Style general size Array like `[[300, 250]]` or `"300x250,970x90"` into an array of sizes `["300x250"]` or '['300x250', '970x90']'
@@ -340,6 +370,10 @@ exports.isArray = function (object) {
 exports.isNumber = function(object) {
   return this.isA(object, t_Numb);
 };
+
+exports.isPlainObject = function(object) {
+  return this.isA(object, t_Object);
+}
 
 /**
  * Return if the object is "empty";
@@ -810,4 +844,11 @@ export function unsupportedBidderMessage(adUnit, unSupportedBidders) {
     containing bidders that don't support ${mediaType}: ${unSupportedBidders.join(', ')}.
     ${plural} won't fetch demand.
   `;
+}
+
+/**
+ * Returns Do Not Track state
+ */
+export function getDNT() {
+  return navigator.doNotTrack === '1' || window.doNotTrack === '1' || navigator.msDoNotTrack === '1' || navigator.doNotTrack === 'yes';
 }
