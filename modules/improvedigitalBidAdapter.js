@@ -49,11 +49,11 @@ export const spec = {
       requestParameters.gdpr = bidderRequest.gdprConsent.consentString;
     }
 
-    if (bidderRequest.gdprConsent.addtlConsent && bidderRequest.gdprConsent.addtlConsent.indexOf('~') !== -1) {
+    if (bidderRequest && bidderRequest.gdprConsent && bidderRequest.gdprConsent.addtlConsent && bidderRequest.gdprConsent.addtlConsent.indexOf('~') !== -1) {
       let additionalConsent = bidderRequest.gdprConsent.addtlConsent;
       // Google Ad Tech Provider IDs
       let atpIds = additionalConsent.substring(additionalConsent.indexOf('~') + 1);
-      utils.deepSetValue(
+      deepSetValue(
         requestParameters,
         'user.ext.consented_providers_settings.consented_providers',
         atpIds.split('.').map(id => parseInt(id, 10))
