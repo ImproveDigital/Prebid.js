@@ -45,17 +45,18 @@ export const spec = {
       libVersion: this.version
     };
 
-    if (bidderRequest && bidderRequest.gdprConsent) {
+    const gdprConsent = deepAccess(bidderRequest, 'gdprConsent')
+    if (gdprConsent) {
       // GDPR Consent String
-      if (bidderRequest.gdprConsent.consentString) {
-        requestParameters.gdpr = bidderRequest.gdprConsent.consentString;
+      if (gdprConsent.consentString) {
+        requestParameters.gdpr = gdprConsent.consentString;
       }
 
       // Additional Consent String
-      if (bidderRequest.gdprConsent.addtlConsent && bidderRequest.gdprConsent.addtlConsent.indexOf('~') !== -1) {
-        let additionalConsent = bidderRequest.gdprConsent.addtlConsent;
+      const additionalConsent = deepAccess(gdprConsent, 'addtlConsent');
+      if (additionalConsent && additionalConsent.indexOf('~') !== -1) {
         // Google Ad Tech Provider IDs
-        let atpIds = additionalConsent.substring(additionalConsent.indexOf('~') + 1);
+        const atpIds = additionalConsent.substring(additionalConsent.indexOf('~') + 1);
         deepSetValue(
           requestParameters,
           'user.ext.consented_providers_settings.consented_providers',
