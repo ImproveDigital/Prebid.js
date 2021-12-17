@@ -564,7 +564,7 @@ describe('Improve Digital Adapter Tests', function () {
           'crid': '422031',
           'w': 600,
           'cid': '99006',
-          'adm': 'document.writeln("<!-- Integration Test Camapigns -->\n<!-- Pageskin Plus Desktop -->\n<!-- Desktop -->\n<!-- Size: 970x250 -->\n<!-- DSP: Other -->\n\n<script async src=\"https:\/\/cdn.inskinad.com\/isfe\/tags\/dsp.js\"><\/script>\n<script type=\"text\/javascript\">\n      (function() {\n        var ns = window.inskin = window.inskin || {};\n        ns.dsp = ns.dsp || [];\n        ns.dsp.push({\n          uri: \"mass:\/\/inskin\/pageskinplus?eyJwbHJfTWFuaWZlc3RQYXRoIjoicHNfY3JlYXRvcngvZGlzdC82MDQwYjg3NWQ5ZmZkNTAwMWExZjQxNzAvbWFuaWZlc3QuanNvbiIsImkiOiJodHRwczovL2Nkbi5pbnNraW5hZC5jb20vQ3JlYXRpdmVTdG9yZS9wc19jcmVhdG9yeC9maWxlcy82MDQwYWI1NGQ5ZmZkNTAwMWExZjQxNjdfMTYzNjcxNDEzNTU4MS85NzB4MjUwLmpwZyIsImwiOiJodHRwczovL3d3dy5pbnNraW5tZWRpYS5jb20vIiwic2l6ZSI6Ijk3MHgyNTAiLCJkc3AiOiJPdGhlciIsImNyZWF0aXZlX2lkIjoiNTAwMDAwMDA2NSIsIm1hc3MiOnsiZW5kcG9pbnQiOiJodHRwczovL2Nkbi5pbnNraW5hZC5jb20vaXNmZS90YWdzL2lwdC5qcyJ9fQ==&gdpr=1&gdpr_consent=CPMd8p0PMd8p0AcABBENBiCsAP_AAH_AAChQIENf_X__b3_j-_59f_t0eY1P9_7_v-0zjhfdt-8N2f_X_L8X42M7vF36pq4KuR4Eu3LBIQdlHOHcTUmw6okVrzPsbk2Mr7NKJ7PEmnMbO2dYGH9_n93TuZKY7__8___z__-v_v____f_r-3_3__59X---_e_V399zLv9_____9nN__wQEAJMNS-AC7EscGTaNKoUQIwrCQ6AUAFFAMLRNYQMrgp2VwEeoIWACE1ARgRAgxBRiwCAAQCAJCIgJADwQCIAiAQAAgBUgIQAEbAILACwMAgAFANCxAigCECQgyOCo5TAgIkWignsrAEou9jTCEMosAKBR_RUYCJQggWBkJCwcxwBIAAA.f_gAD_gAAAAA&c=https%3A%2F%2Feuc-ice.360yield.com%2Fclick%2FlvB0BZUT3nAHAB6m0bnLRzIruZYOaIrmGVd.BfinMXjmb6rYdDdhkCmk335QciKMW9Lwnb2sDfhvzSxmz4FqYusBuAO-rzWlGxjJhE7-.W8tdH2tcXgXklZaJPkdH0i9nM3VmjlsRHym5dLNsPLBDEmWU-SGB4nwvy9440CdvlGH7LxreR9AIF62nq2ziTAA9MrhEZmBSBne7zhJRC8zDpR2rJvLGJuj3nT5Ugw.fNo-Mxi5wB3Hqy3DKYhqKKIJ7rZZ.b-UzsLsTy8vDAw35IX3A0.3kfAk07rjHlxN76bkQZWBc2tfl-ESxFwdJXaW9XAE0quYLQc4nkeiNsBCzI3HFY31SqDOANDWh-UDjnrLZNv0U2s3v37eGaE8EE.z722VZKhO4H0yszr2EQl51SKL20G-MA8lWoCfjFE3vnUAborZqbDYGSPquA.SVn9FbB8TIUQTlxDh3G1xNNYepxYpbaNpQ3QtBBLQqMzy0FmpmvZXUkJnY3s.luw1ihQboLj4l1ASoA79A83UJvGxOMhIKGeJw6CqThUFDrRqCSmzUm8MITKB%2F%2F\"\n        });\n      })();\n<\/script>");document.writeln("<improvedigital_ad_output_information tp_id=\"\" buyer_id=\"0\" rtb_advertiser=\"\" campaign_id=\"187354\" line_item_id=\"400642\" creative_id=\"540514\" crid=\"0\" placement_id=\"22617450\"><\/improvedigital_ad_output_information>");'
+          'adm': 'document.writeln("<!-- Integration Test Camapigns -->\n<!-- Pageskin Plus Desktop -->\n<!-- Desktop -->\n<!-- Size: 970x250 -->\n<!-- DSP: Other -->\n\n<script async src=\"https:\/\/cdn.inskinad.com\/isfe\/tags\/dsp.js\"><\/script>\n<script type=\"text\/javascript\">\n      (function() {\n        var ns = window.inskin = window.inskin || {};\n        ns.dsp = ns.dsp || [];\n        ns.dsp.push({\n          uri: \"razr:\/\/inskin\/pageskinplus?eyJwbHJfTWFuaWZlc3RQYXRoIjoicHNfY3JlYXRvcngvZGlzdC82MDQwYjg3NWQ5ZmZkNTAwMWExZjQxNzAvbWFuaWZlc3QuanNvbiIsImkiOiJodHRwczovL2Nkbi5pbnNraW5hZC5jb20vQ3JlYXRpdmVTdG9yZS9wc19jcmVhdG9yeC9maWxlcy82MDQwYWI1NGQ5ZmZkNTAwMWExZjQxNjdfMTYzNjcxNDEzNTU4MS85NzB4MjUwLmpwZyIsImwiOiJodHRwczovL3d3dy5pbnNraW5tZWRpYS5jb20vIiwic2l6ZSI6Ijk3MHgyNTAiLCJkc3AiOiJPdGhlciIsImNyZWF0aXZlX2lkIjoiNTAwMDAwMDA2NSIsIm1hc3MiOnsiZW5kcG9pbnQiOiJodHRwczovL2Nkbi5pbnNraW5hZC5jb20vaXNmZS90YWdzL2lwdC5qcyJ9fQ==&gdpr=1&gdpr_consent=CPMd8p0PMd8p0AcABBENBiCsAP_AAH_AAChQIENf_X__b3_j-_59f_t0eY1P9_7_v-0zjhfdt-8N2f_X_L8X42M7vF36pq4KuR4Eu3LBIQdlHOHcTUmw6okVrzPsbk2Mr7NKJ7PEmnMbO2dYGH9_n93TuZKY7__8___z__-v_v____f_r-3_3__59X---_e_V399zLv9_____9nN__wQEAJMNS-AC7EscGTaNKoUQIwrCQ6AUAFFAMLRNYQMrgp2VwEeoIWACE1ARgRAgxBRiwCAAQCAJCIgJADwQCIAiAQAAgBUgIQAEbAILACwMAgAFANCxAigCECQgyOCo5TAgIkWignsrAEou9jTCEMosAKBR_RUYCJQggWBkJCwcxwBIAAA.f_gAD_gAAAAA&c=https%3A%2F%2Feuc-ice.360yield.com%2Fclick%2FlvB0BZUT3nAHAB6m0bnLRzIruZYOaIrmGVd.BfinMXjmb6rYdDdhkCmk335QciKMW9Lwnb2sDfhvzSxmz4FqYusBuAO-rzWlGxjJhE7-.W8tdH2tcXgXklZaJPkdH0i9nM3VmjlsRHym5dLNsPLBDEmWU-SGB4nwvy9440CdvlGH7LxreR9AIF62nq2ziTAA9MrhEZmBSBne7zhJRC8zDpR2rJvLGJuj3nT5Ugw.fNo-Mxi5wB3Hqy3DKYhqKKIJ7rZZ.b-UzsLsTy8vDAw35IX3A0.3kfAk07rjHlxN76bkQZWBc2tfl-ESxFwdJXaW9XAE0quYLQc4nkeiNsBCzI3HFY31SqDOANDWh-UDjnrLZNv0U2s3v37eGaE8EE.z722VZKhO4H0yszr2EQl51SKL20G-MA8lWoCfjFE3vnUAborZqbDYGSPquA.SVn9FbB8TIUQTlxDh3G1xNNYepxYpbaNpQ3QtBBLQqMzy0FmpmvZXUkJnY3s.luw1ihQboLj4l1ASoA79A83UJvGxOMhIKGeJw6CqThUFDrRqCSmzUm8MITKB%2F%2F\"\n        });\n      })();\n<\/script>");document.writeln("<improvedigital_ad_output_information tp_id=\"\" buyer_id=\"0\" rtb_advertiser=\"\" campaign_id=\"187354\" line_item_id=\"400642\" creative_id=\"540514\" crid=\"0\" placement_id=\"22617450\"><\/improvedigital_ad_output_information>");'
         }
       ],
       'debug': ''
@@ -1039,14 +1039,14 @@ describe('Improve Digital Adapter Tests', function () {
       expect(bids).to.deep.equal(expectedBidOutstreamVideo);
     });
 
-    it('should not affect non-MASS bids', function () {
+    it('should not affect non-RAZR bids', function () {
       const bids = spec.interpretResponse(serverResponse, {bidderRequest});
-      expect(bids[0].ad).to.not.include('massBidId');
+      expect(bids[0].ad).to.not.include('razrBidId');
     });
 
-    it('should detect MASS bids', function () {
+    it('should detect RAZR bids', function () {
       const bids = spec.interpretResponse(serverResponseMass, {bidderRequest});
-      expect(bids[0].ad).to.include('massBidId');
+      expect(bids[0].ad).to.include('razrBidId');
     });
   });
 

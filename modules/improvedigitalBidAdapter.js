@@ -101,7 +101,7 @@ export const spec = {
    * @return {Bid[]} An array of bids which were nested inside the server.
    */
   interpretResponse: function (serverResponse, {bidderRequest}) {
-    const mass = new MASS();
+    const razr = new RAZR();
     const bids = [];
     _each(serverResponse.body.bid, function (bidObject) {
       if (!bidObject.price || bidObject.price === null ||
@@ -181,7 +181,7 @@ export const spec = {
         };
       }
 
-      mass.addBidData({
+      razr.addBidData({
         bidRequest,
         bid
       });
@@ -735,7 +735,7 @@ export function ImproveDigitalAdServerJSClient(endPoint) {
   };
 }
 
-export function MASS() {
+export function RAZR() {
   this.bids = {};
 
   this.addBidData = data => {
@@ -747,17 +747,17 @@ export function MASS() {
         adm: bid.ad
       };
 
-      bid.ad = `<script>window.top.postMessage({massBidId: "${bid.requestId}"}, "*");\x3c/script>`;
+      bid.ad = `<script>window.top.postMessage({razrBidId: "${bid.requestId}"}, "*");\x3c/script>`;
       this.addListenerOnce();
     }
   };
 
   this.isMassBid = bid => {
-    return bid && /mass:\\?\/\\?\//.test(bid.ad);
+    return bid && /[rm]a[zs][rs]:\\?\/\\?\//.test(bid.ad);
   };
 
   this.render = (bidId, event) => {
-    const ns = window.mass = window.mass || {};
+    const ns = window.razr = window.razr || {};
     ns.queue = ns.queue || [];
 
     ns.queue.push({
@@ -770,7 +770,7 @@ export function MASS() {
       const s = document.createElement('script');
       s.type = 'text/javascript';
       s.async = true;
-      s.src = 'https://cdn.massplatform.net/bootloader.js';
+      s.src = 'https://razr.improvedigital.com/renderer.js';
 
       const x = document.getElementsByTagName('script')[0];
       x.parentNode.insertBefore(s, x);
@@ -782,7 +782,7 @@ export function MASS() {
   this.addListenerOnce = () => {
     if (!this.listening) {
       window.addEventListener('message', event => {
-        const bidId = deepAccess(event, 'data.massBidId');
+        const bidId = deepAccess(event, 'data.razrBidId');
         if (bidId) {
           this.render(bidId, event);
         }
