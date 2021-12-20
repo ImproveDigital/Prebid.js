@@ -637,6 +637,12 @@ export function ImproveDigitalAdServerJSClient(endPoint) {
     if (requestParameters.schain) {
       impressionBidRequestObject.schain = requestParameters.schain;
     }
+    if (requestParameters.pagecat) {
+      impressionBidRequestObject.pagecat = requestParameters.pagecat;
+    }
+    if (requestParameters.genre) {
+      impressionBidRequestObject.genre = requestParameters.genre;
+    }
     if (requestParameters.user) {
       impressionBidRequestObject.user = requestParameters.user;
     }

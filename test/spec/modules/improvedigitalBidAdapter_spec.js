@@ -517,17 +517,19 @@ describe('Improve Digital Adapter Tests', function () {
     });
 
     it('should set pagecat and genre ➞ fpd:ortb2.site', function() {
-      const bidRequest = Object.assign({}, simpleBidRequest);
       config.setConfig(JSON.parse('{"ortb2":{"site":{"cat":["IAB2"],"pagecat":["IAB2-2"],"content":{"genre":"Adventure"}}}}'));
+      const bidRequest = Object.assign({}, simpleBidRequest);
       const request = spec.buildRequests([bidRequest], bidderRequestReferrer)[0];
       const params = JSON.parse(decodeURIComponent(request.data.substring(PARAM_PREFIX.length)));
-      expect(params.bid_request.pagecat).is('array').equal(['IAB2-2'])
-      expect(params.bid_request.genre, 'Adventure');
+      expect(params.bid_request.pagecat).to.be.an('array');
+      expect(params.bid_request.pagecat).to.deep.equal(['IAB2-2']);
+      expect(params.bid_request.genre).to.be.a('string');
+      expect(params.bid_request.genre).be.equal('Adventure');
     });
 
     it('should not set pagecat and genre when malformed data provided ➞ fpd:ortb2.site', function() {
-      const bidRequest = Object.assign({}, simpleBidRequest);
       config.setConfig(JSON.parse('{"ortb2":{"site":{"pagecat":"IAB2-2","content":{"genre":["Adventure"]}}}}'));
+      const bidRequest = Object.assign({}, simpleBidRequest);
       const request = spec.buildRequests([bidRequest], bidderRequestReferrer)[0];
       const params = JSON.parse(decodeURIComponent(request.data.substring(PARAM_PREFIX.length)));
       expect(params.bid_request.pagecat).does.not.exist;
@@ -535,19 +537,25 @@ describe('Improve Digital Adapter Tests', function () {
     });
 
     it('should use cat when pagecat not available ➞ fpd:ortb2.site', function() {
-      const bidRequest = Object.assign({}, simpleBidRequest);
       config.setConfig(JSON.parse('{"ortb2":{"site":{"cat":["IAB2"]}}}'));
+      const bidRequest = Object.assign({}, simpleBidRequest);
       const request = spec.buildRequests([bidRequest], bidderRequestReferrer)[0];
       const params = JSON.parse(decodeURIComponent(request.data.substring(PARAM_PREFIX.length)));
-      expect(params.bid_request.pagecat).is('array').equal(['IAB2']);
+      expect(params.bid_request.pagecat).to.be.an('array');
+      expect(params.bid_request.pagecat).to.deep.equal(['IAB2']);
     });
 
     it('should format pagecat correctly ➞ fpd:ortb2.site', function() {
-      const bidRequest = Object.assign({}, simpleBidRequest);
       config.setConfig(JSON.parse('{"ortb2":{"site":{"cat":["IAB2", ["IAB-1"], "IAB3", 123, ""]}}}'));
+      const bidRequest = Object.assign({}, simpleBidRequest);
       const request = spec.buildRequests([bidRequest], bidderRequestReferrer)[0];
       const params = JSON.parse(decodeURIComponent(request.data.substring(PARAM_PREFIX.length)));
-      expect(params.bid_request.pagecat).is('array').equal(['IAB2', 'IAB3']);
+      expect(params.bid_request.pagecat).to.be.an('array');
+      expect(params.bid_request.pagecat).to.deep.equal([
+        'IAB2',
+        'IAB3'
+      ]
+      );
     });
   });
 
