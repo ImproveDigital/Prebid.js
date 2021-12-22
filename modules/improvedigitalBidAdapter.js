@@ -10,6 +10,64 @@ const BIDDER_CODE = 'improvedigital';
 const RENDERER_URL = 'https://acdn.adnxs.com/video/outstream/ANOutstreamVideo.js';
 const VIDEO_TARGETING = ['skip', 'skipmin', 'skipafter'];
 
+class Razr {
+  static bids = {};
+
+  static addBidData(data) {
+    const {bid} = data || {};
+
+    if (this.isValidBid(bid)) {
+      this.bids[bid.requestId] = {
+        ...data,
+        adm: bid.ad
+      };
+
+      bid.ad = `<script>window.top.postMessage({razrBidId: "${bid.requestId}"}, "*");</script>`;
+      this.addListenerOnce();
+    }
+  }
+
+  static isValidBid(bid) {
+    return bid && /razr:\\?\/\\?\//.test(bid.ad);
+  }
+
+  static render(bidId, event) {
+    const ns = window.razr = window.razr || {};
+    ns.queue = ns.queue || [];
+
+    ns.queue.push({
+      ...this.bids[bidId],
+      type: 'prebid',
+      event
+    });
+
+    if (!this.loaded) {
+      const s = document.createElement('script');
+      s.type = 'text/javascript';
+      s.async = true;
+      s.src = 'https://razr.improvedigital.com/renderer.js';
+
+      const x = document.getElementsByTagName('script')[0];
+      x.parentNode.insertBefore(s, x);
+
+      this.loaded = true;
+    }
+  }
+
+  static addListenerOnce() {
+    if (!this.listening) {
+      window.addEventListener('message', event => {
+        const bidId = deepAccess(event, 'data.razrBidId');
+        if (bidId) {
+          this.render(bidId, event);
+        }
+      });
+
+      this.listening = true;
+    }
+  }
+}
+
 export const spec = {
   version: '7.5.0',
   code: BIDDER_CODE,
@@ -101,7 +159,6 @@ export const spec = {
    * @return {Bid[]} An array of bids which were nested inside the server.
    */
   interpretResponse: function (serverResponse, {bidderRequest}) {
-    const razr = new RAZR();
     const bids = [];
     _each(serverResponse.body.bid, function (bidObject) {
       if (!bidObject.price || bidObject.price === null ||
@@ -181,7 +238,7 @@ export const spec = {
         };
       }
 
-      razr.addBidData({
+      Razr.addBidData({
         bidRequest,
         bid
       });
@@ -732,63 +789,5 @@ export function ImproveDigitalAdServerJSClient(endPoint) {
       outputObject.errorCode = this.CONSTANTS.ERROR_CODES.MISSING_PLACEMENT_PARAMS;
     }
     return outputObject;
-  };
-}
-
-export function RAZR() {
-  this.bids = {};
-
-  this.addBidData = data => {
-    const {bid} = data || {};
-
-    if (this.isMassBid(bid)) {
-      this.bids[bid.requestId] = {
-        ...data,
-        adm: bid.ad
-      };
-
-      bid.ad = `<script>window.top.postMessage({razrBidId: "${bid.requestId}"}, "*");\x3c/script>`;
-      this.addListenerOnce();
-    }
-  };
-
-  this.isMassBid = bid => {
-    return bid && /[rm]a[zs][rs]:\\?\/\\?\//.test(bid.ad);
-  };
-
-  this.render = (bidId, event) => {
-    const ns = window.razr = window.razr || {};
-    ns.queue = ns.queue || [];
-
-    ns.queue.push({
-      ...this.bids[bidId],
-      type: 'prebid',
-      event
-    });
-
-    if (!this.loaded) {
-      const s = document.createElement('script');
-      s.type = 'text/javascript';
-      s.async = true;
-      s.src = 'https://razr.improvedigital.com/renderer.js';
-
-      const x = document.getElementsByTagName('script')[0];
-      x.parentNode.insertBefore(s, x);
-
-      this.loaded = true;
-    }
-  };
-
-  this.addListenerOnce = () => {
-    if (!this.listening) {
-      window.addEventListener('message', event => {
-        const bidId = deepAccess(event, 'data.razrBidId');
-        if (bidId) {
-          this.render(bidId, event);
-        }
-      });
-
-      this.listening = true;
-    }
   };
 }
