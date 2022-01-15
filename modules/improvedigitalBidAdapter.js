@@ -652,6 +652,10 @@ export function ImproveDigitalAdServerJSClient(endPoint) {
       }
     }
 
+    if (config.getConfig('coppa')) {
+      impressionBidRequestObject.coppa = 1;
+    }
+
     return impressionBidRequestObject;
   };
 
