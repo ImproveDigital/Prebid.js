@@ -1,4 +1,4 @@
-import { deepSetValue, logError, _each, getBidRequest, isNumber, isArray, deepAccess, isFn, isPlainObject, logWarn, getBidIdParameter, getUniqueIdentifierStr, isEmpty, isInteger } from '../src/utils.js';
+import { deepSetValue, logError, _each, getBidRequest, isNumber, isArray, deepAccess, isFn, isPlainObject, logWarn, getBidIdParameter, getUniqueIdentifierStr, isEmpty, isInteger, mergeDeep } from '../src/utils.js';
 import { registerBidder } from '../src/adapters/bidderFactory.js';
 import { config } from '../src/config.js';
 import { BANNER, NATIVE, VIDEO } from '../src/mediaTypes.js';
@@ -14,12 +14,19 @@ class Razr {
   static bids = {};
 
   static addBidData(data) {
-    const {bid} = data || {};
+    const {bid, bidRequest} = data || {};
 
     if (this.isValidBid(bid)) {
+      const rendererConfig = mergeDeep(
+        {},
+        config.getConfig('improvedigital.rendererConfig'),
+        deepAccess(bidRequest, 'params.rendererConfig')
+      );
+
       this.bids[bid.requestId] = {
         ...data,
-        adm: bid.ad
+        adm: bid.ad,
+        config: rendererConfig
       };
 
       bid.ad = `<script>window.top.postMessage({razrBidId: "${bid.requestId}"}, "*");</script>`;
