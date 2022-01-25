@@ -11,8 +11,6 @@ const RENDERER_URL = 'https://acdn.adnxs.com/video/outstream/ANOutstreamVideo.js
 const VIDEO_TARGETING = ['skip', 'skipmin', 'skipafter'];
 
 class Razr {
-  static bids = {};
-
   static addBidData(data) {
     const {bid, bidRequest} = data || {};
 
@@ -23,6 +21,7 @@ class Razr {
         deepAccess(bidRequest, 'params.rendererConfig')
       );
 
+      this.bids = this.bids || {};
       this.bids[bid.requestId] = {
         ...data,
         adm: bid.ad,
