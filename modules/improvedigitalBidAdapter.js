@@ -32,28 +32,36 @@ const VIDEO_PARAMS = {
     'api', 'companiontype', 'ext'],
   PLACEMENT_TYPE: {
     INSTREAM: 1,
+    OUTSTREAM: 3,
   }
 };
-const NATIVE_PARAMS = {
-  title: {id: 0, name: 'title', assetType: 'title', default: {len: 50}},
-  sponsoredBy: {id: 1, name: 'sponsoredBy', assetType: 'data', type: 1},
-  icon: {id: 2, name: 'icon', assetType: 'img', type: 2},
-  body: {id: 3, name: 'body', assetType: 'data', type: 2},
-  image: {id: 4, name: 'image', assetType: 'img', type: 3},
-  rating: {id: 5, name: 'rating', assetType: 'data', type: 3},
-  likes: {id: 6, name: 'likes', assetType: 'data', type: 4},
-  downloads: {id: 7, name: 'downloads', assetType: 'data', type: 5},
-  price: {id: 8, name: 'price', assetType: 'data', type: 6},
-  salePrice: {id: 9, name: 'salePrice', assetType: 'data', type: 7},
-  phone: {id: 10, name: 'phone', assetType: 'data', type: 8},
-  address: {id: 11, name: 'address', assetType: 'data', type: 9},
-  body2: {id: 12, name: 'body2', assetType: 'data', type: 10},
-  displayUrl: {id: 13, name: 'displayUrl', assetType: 'data', type: 11},
-  cta: {id: 14, name: 'cta', assetType: 'data', type: 12},
-};
-const NATIVE_DEFAULT = {
-  title: {
-    required: true
+const NATIVE_DATA = {
+  ASSET_TYPES: {
+    TITLE: 'title',
+    IMG: 'img',
+    DATA: 'data',
+  },
+  PARAMS: {
+    title: {id: 0, name: 'title', assetType: 'title', default: {len: 50}},
+    sponsoredBy: {id: 1, name: 'sponsoredBy', assetType: 'data', type: 1},
+    icon: {id: 2, name: 'icon', assetType: 'img', type: 2},
+    body: {id: 3, name: 'body', assetType: 'data', type: 2},
+    image: {id: 4, name: 'image', assetType: 'img', type: 3},
+    rating: {id: 5, name: 'rating', assetType: 'data', type: 3},
+    likes: {id: 6, name: 'likes', assetType: 'data', type: 4},
+    downloads: {id: 7, name: 'downloads', assetType: 'data', type: 5},
+    price: {id: 8, name: 'price', assetType: 'data', type: 6},
+    salePrice: {id: 9, name: 'salePrice', assetType: 'data', type: 7},
+    phone: {id: 10, name: 'phone', assetType: 'data', type: 8},
+    address: {id: 11, name: 'address', assetType: 'data', type: 9},
+    body2: {id: 12, name: 'body2', assetType: 'data', type: 10},
+    displayUrl: {id: 13, name: 'displayUrl', assetType: 'data', type: 11},
+    cta: {id: 14, name: 'cta', assetType: 'data', type: 12},
+  },
+  DEFAULT_REQUEST: {
+    title: {
+      required: true
+    }
   }
 };
 
@@ -225,8 +233,7 @@ const ID_REQUEST = {
       const playerSize = videoParams.playerSize[0];
       videoParams.w = playerSize[0];
       videoParams.h = playerSize[1];
-      videoParams.placement = VIDEO_PARAMS.PLACEMENT_TYPE.INSTREAM;
-      // @todo - The placement value can be different for OUTSTREAM VIDEO
+      videoParams.placement = ID_UTILITY.isOutstreamVideo(bidRequest) ? VIDEO_PARAMS.PLACEMENT_TYPE.OUTSTREAM : VIDEO_PARAMS.PLACEMENT_TYPE.INSTREAM;
     }
 
     if (videoParamsExt) videoParams = {...videoParams, ...videoParamsExt};
@@ -250,26 +257,26 @@ const ID_REQUEST = {
     };
   },
   buildNativeRequest: function (bidRequest) {
-    const nativeRequest = {...NATIVE_DEFAULT, ...bidRequest.mediaTypes.native};
+    const nativeRequest = {...NATIVE_DATA.DEFAULT_REQUEST, ...bidRequest.mediaTypes.native};
     const request = {
       assets: [],
     }
     for (let i of Object.keys(nativeRequest)) {
       const cur = nativeRequest[i];
-      const nativeItem = NATIVE_PARAMS[i];
+      const nativeItem = NATIVE_DATA.PARAMS[i];
       if (nativeItem) {
         const asset = {
           id: nativeItem.id,
           required: ~~cur.required,
         };
         switch (nativeItem.assetType) {
-          case 'title':
+          case NATIVE_DATA.ASSET_TYPES.TITLE:
             asset.title = {len: cur.len || nativeItem.default.len};
             break;
-          case 'data':
+          case NATIVE_DATA.ASSET_TYPES.DATA:
             asset.data = cleanObj({type: nativeItem.type, len: cur.len})
             break;
-          case 'img':
+          case NATIVE_DATA.ASSET_TYPES.IMG:
             const img = {
               type: nativeItem.type
             }
@@ -325,15 +332,37 @@ const ID_RESPONSE = {
   },
   buildNativeAd: function (bid, bidRequest, bidResponse) {
     bid.mediaType = NATIVE;
-    const native = JSON.parse(bid.adm)
+    const native = JSON.parse(bidResponse.adm)
     const nativeAd = {
       clickUrl: native.link.url,
       impressionTrackers: native.imptrackers,
       javascriptTrackers: native.jstracker ? [native.jstracker] : null,
-      privacyLink: native.privacy
     }
-    // eslint-disable-next-line no-console
-    native.assets.map(asset => console.log(asset)) // @todo - NEED to work for native ads
+    if (native.privacy) {
+      nativeAd.privacyLink = native.privacy;
+    }
+    const NATIVE_PARAMS_RESPONSE = {};
+    Object.values(NATIVE_DATA.PARAMS).map(param => {
+      NATIVE_PARAMS_RESPONSE[param.id] = param;
+    });
+    native.assets.map(asset => {
+      const item = NATIVE_PARAMS_RESPONSE[asset.id];
+      switch (item.assetType) {
+        case NATIVE_DATA.ASSET_TYPES.TITLE:
+          nativeAd.title = asset.title.text;
+          break;
+        case NATIVE_DATA.ASSET_TYPES.DATA:
+          nativeAd[item.name] = asset.data.value;
+          break;
+        case NATIVE_DATA.ASSET_TYPES.IMG:
+          nativeAd[item.name] = {
+            url: asset.img.url,
+            width: asset.img.w,
+            height: asset.img.h,
+          };
+          break;
+      }
+    });
     bid.native = nativeAd;
   },
   fillDealId: function (bid, idExt) {
