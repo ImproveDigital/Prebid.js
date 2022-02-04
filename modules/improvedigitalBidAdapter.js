@@ -199,7 +199,7 @@ const ID_REQUEST = {
       deepSetValue(impressionObject, 'bidfloor', placementObject.bidFloor);
     }
     if (placementObject.bidFloorCur) {
-      deepSetValue(impressionObject, 'bidfloorcur', placementObject.bidfloorcur);
+      deepSetValue(impressionObject, 'bidfloorcur', placementObject.bidFloorCur);
     }
     if (placementObject.placementId) {
       deepSetValue(impressionObject, 'ext.bidder.placementId', placementObject.placementId);
@@ -208,7 +208,7 @@ const ID_REQUEST = {
       deepSetValue(impressionObject, 'ext.bidder.placementKey', placementObject.placementKey);
     }
     if (placementObject.publisherId) {
-      deepSetValue(impressionObject, 'ext.bidder.publisherId', placementObject.placementKey);
+      deepSetValue(impressionObject, 'ext.bidder.publisherId', placementObject.publisherId);
     }
     if (placementObject.keyValues) {
       deepSetValue(impressionObject, 'ext.bidder.keyValues', placementObject.keyValues);
@@ -228,8 +228,8 @@ const ID_REQUEST = {
     let videoParams = deepClone(deepAccess(bidRequest, 'mediaTypes.video'));
     const videoParamsExt = deepAccess(bidRequest, 'params.video');
 
-    if (isArray(videoParams.playerSize[0])) {
-      const playerSize = videoParams.playerSize[0];
+    if (isArray(videoParams.playerSize)) {
+      const playerSize = videoParams.playerSize;
       videoParams.w = playerSize[0];
       videoParams.h = playerSize[1];
       videoParams.placement = ID_UTILITY.isOutstreamVideo(bidRequest) ? VIDEO_PARAMS.PLACEMENT_TYPE.OUTSTREAM : VIDEO_PARAMS.PLACEMENT_TYPE.INSTREAM;
@@ -539,7 +539,7 @@ export const spec = {
     const fpd = config.getConfig('ortb2');
     if (fpd) {
       if (fpd.site) {
-        request.site = fpd.site;
+        request.site = {...request.site, ...fpd.site};
       } else if (fpd.app) {
         request.app = fpd.app;
       }
