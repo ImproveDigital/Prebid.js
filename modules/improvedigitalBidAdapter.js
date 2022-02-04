@@ -13,7 +13,6 @@ import {
   isNumber,
   isPlainObject,
   logWarn,
-  mergeDeep,
   parseGPTSingleSizeArrayToRtbSize
 } from '../src/utils.js';
 import {registerBidder} from '../src/adapters/bidderFactory.js';
@@ -433,7 +432,7 @@ export const spec = {
     };
 
     // Impressions
-    request.imp = bidRequests.map((bidRequest, id) => ID_REQUEST.buildImpression(bidRequest));
+    request.imp = bidRequests.map((bidRequest) => ID_REQUEST.buildImpression(bidRequest));
 
     // Coppa
     if (config.getConfig('coppa')) {
@@ -475,17 +474,14 @@ export const spec = {
     // Adding first party data
     const fpd = config.getConfig('ortb2');
     if (fpd) {
-      request.site = fpd.site;
-      if (fpd.app) {
+      if (fpd.site) {
+        request.site = fpd.site;
+      } else if (fpd.app) {
         request.app = fpd.app;
       }
-      request.device = mergeDeep({
-        'ip': 'caller',
-        'ipv6': 'caller',
-        'ua': 'caller',
-        'js': 1,
-        'language': ID_UTILITY.getLanguage(),
-      }, fpd.device || {});
+      if (fpd.device) {
+        request.device = {...request.device, ...fpd.device}
+      }
       if (getDNT()) {
         request.device.dnt = 1;
       }
@@ -508,8 +504,7 @@ export const spec = {
         deepSetValue(request, 'user.ext.eids', eids);
       }
     }
-    // eslint-disable-next-line no-console
-    console.log(JSON.stringify(request))
+
     return {
       method: 'POST',
       url: REQUEST_URL,
