@@ -433,7 +433,7 @@ const ID_REQUEST = {
     }
     // Adding Interstitial Signal
     if (placementObject.interstitialSignal) {
-      impressionObject.instl = placementObject.interstitialSignal;
+      impressionObject.instl = 1;
     }
 
     const videoMedia = deepAccess(bidRequest, 'mediaTypes.video');
