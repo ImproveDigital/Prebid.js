@@ -58,11 +58,6 @@ const NATIVE_DATA = {
     body2: {id: 12, name: 'body2', assetType: 'data', type: 10},
     displayUrl: {id: 13, name: 'displayUrl', assetType: 'data', type: 11},
     cta: {id: 14, name: 'cta', assetType: 'data', type: 12},
-  },
-  DEFAULT_REQUEST: {
-    title: {
-      required: true
-    }
   }
 };
 
@@ -487,7 +482,7 @@ const ID_REQUEST = {
     };
   },
   buildNativeRequest: function (bidRequest) {
-    const nativeRequest = bidRequest.mediaTypes.native; // {...NATIVE_DATA.DEFAULT_REQUEST, ...bidRequest.mediaTypes.native};
+    const nativeRequest = bidRequest.mediaTypes.native;
     const request = {
       assets: [],
     }
