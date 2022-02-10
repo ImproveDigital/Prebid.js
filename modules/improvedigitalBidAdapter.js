@@ -38,13 +38,14 @@ const VIDEO_PARAMS = {
 };
 
 const NATIVE_DATA = {
+  VERSION: '1.2',
   ASSET_TYPES: {
     TITLE: 'title',
     IMG: 'img',
     DATA: 'data',
   },
   PARAMS: {
-    title: {id: 0, name: 'title', assetType: 'title', default: {len: 50}},
+    title: {id: 0, name: 'title', assetType: 'title', default: {len: 140}},
     sponsoredBy: {id: 1, name: 'sponsoredBy', assetType: 'data', type: 1},
     icon: {id: 2, name: 'icon', assetType: 'img', type: 2},
     body: {id: 3, name: 'body', assetType: 'data', type: 2},
@@ -96,7 +97,7 @@ export const spec = {
     const w = screen.width;
 
     const request = {
-      id: bidderRequest.auctionId,
+      id: getUniqueIdentifierStr(),
       device: {ua, language, h, w, 'ip': '91.199.242.236'}, // @todo - remove IP address
       tmax: bidderRequest.timeout || 2000,
       cur: [currency || 'USD'],
@@ -344,7 +345,6 @@ const ID_UTILITY = {
       placementKey = getBidIdParameter('placementKey', bid.params) || null;
     }
     const keyValues = getBidIdParameter('keyValues', bid.params) || null;
-    const singleSizeFilter = getBidIdParameter('size', bid.params) || null;
     const bidId = getBidIdParameter('bidId', bid);
     const transactionId = getBidIdParameter('transactionId', bid);
     const currency = config.getConfig('currency.adServerCurrency');
@@ -466,9 +466,10 @@ const ID_REQUEST = {
     const videoParamsExt = deepAccess(bidRequest, 'params.video');
 
     if (isArray(videoParams.playerSize)) {
-      const playerSize = videoParams.playerSize;
-      videoParams.w = playerSize[0];
-      videoParams.h = playerSize[1];
+      const playerSize = videoParams.playerSize.filter(ID_UTILITY.isValidSize).map(parseGPTSingleSizeArrayToRtbSize);
+      if (playerSize.length) {
+        videoParams = {...videoParams, ...playerSize.shift()}
+      }
       videoParams.placement = ID_UTILITY.isOutstreamVideo(bidRequest) ? VIDEO_PARAMS.PLACEMENT_TYPE.OUTSTREAM : VIDEO_PARAMS.PLACEMENT_TYPE.INSTREAM;
     }
 
@@ -539,7 +540,7 @@ const ID_REQUEST = {
         request.assets.push(asset);
       }
     }
-    return { request: JSON.stringify(request) };
+    return { ver: NATIVE_DATA.VERSION, request: JSON.stringify(request) };
   },
 };
 
