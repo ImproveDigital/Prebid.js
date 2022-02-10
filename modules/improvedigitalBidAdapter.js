@@ -9,6 +9,7 @@ import {
   getDNT,
   getUniqueIdentifierStr,
   isArray,
+  isInteger,
   isFn,
   isNumber,
   isPlainObject,
@@ -62,7 +63,6 @@ const NATIVE_DATA = {
 };
 
 export const spec = {
-  version: '7.6.0',
   code: BIDDER_CODE,
   gvlid: 253,
   aliases: ['id'],
@@ -105,6 +105,14 @@ export const spec = {
           gdpr: 0,
         }
       },
+      ext: {
+        improvedigital: {
+          sdk: {
+            name: 'prebidjs',
+            version: $$PREBID_GLOBAL$$.version,
+          }
+        }
+      }
     };
 
     // Impressions
@@ -359,10 +367,6 @@ const ID_UTILITY = {
 
     if (config.getConfig('improvedigital.usePrebidSizes') === true && !ID_UTILITY.isInstreamVideo(bid) && !ID_UTILITY.isOutstreamVideo(bid) && bid.sizes && bid.sizes.length > 0) {
       normalizedBidRequest.format = bid.sizes;
-    } else if (singleSizeFilter && singleSizeFilter.w && singleSizeFilter.h) {
-      normalizedBidRequest.size = {};
-      normalizedBidRequest.size.h = singleSizeFilter.h;
-      normalizedBidRequest.size.w = singleSizeFilter.w;
     }
 
     if (bidId) {
@@ -399,6 +403,13 @@ const ID_UTILITY = {
 
     return normalizedBidRequest;
   },
+  isValidSize: function (sizePair) {
+    return sizePair.length === 2 &&
+      isInteger(sizePair[0]) &&
+      isInteger(sizePair[1]) &&
+      sizePair[0] >= 0 &&
+      sizePair[1] >= 0;
+  }
 };
 
 const ID_REQUEST = {
@@ -443,7 +454,7 @@ const ID_REQUEST = {
         deepSetValue(impressionObject, 'ext.is_rewarded_inventory', true);
       }
     } else if (deepAccess(bidRequest, 'mediaTypes.banner')) {
-      impressionObject.banner = ID_REQUEST.buildBannerRequest(bidRequest);
+      impressionObject.banner = ID_REQUEST.buildBannerRequest(bidRequest, placementObject);
     } else if (deepAccess(bidRequest, 'mediaTypes.native')) {
       impressionObject.native = ID_REQUEST.buildNativeRequest(bidRequest);
     }
@@ -475,10 +486,19 @@ const ID_REQUEST = {
     });
     return videoParams;
   },
-  buildBannerRequest: function (bidRequest) {
-    const sizes = getAdUnitSizes(bidRequest);
+  buildBannerRequest: function (bidRequest, placementObject) {
+    // Set of desired creative sizes
+    // Input Format: array of pairs, i.e. [[300, 250], [250, 250]]
+    let sizes;
+    if (placementObject.format && isArray(placementObject.format)) {
+      sizes = placementObject.format.map(sizePair => { return { w: sizePair[0], h: sizePair[1] } });
+    } else {
+      sizes = getAdUnitSizes(bidRequest);
+    }
     return {
-      format: sizes.map(wh => parseGPTSingleSizeArrayToRtbSize(wh))
+      format: sizes
+        .filter(ID_UTILITY.isValidSize)
+        .map(parseGPTSingleSizeArrayToRtbSize)
     };
   },
   buildNativeRequest: function (bidRequest) {
