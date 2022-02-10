@@ -1,20 +1,6 @@
 import {
-  cleanObj,
-  deepAccess,
-  deepClone,
-  deepSetValue,
-  getAdUnitSizes,
-  getBidIdParameter,
-  getBidRequest,
-  getDNT,
-  getUniqueIdentifierStr,
-  isArray,
-  isInteger,
-  isFn,
-  isNumber,
-  isPlainObject,
-  logWarn, mergeDeep,
-  parseGPTSingleSizeArrayToRtbSize
+  cleanObj, deepAccess, deepClone, deepSetValue, getAdUnitSizes, getBidIdParameter, getBidRequest, getDNT,
+  getUniqueIdentifierStr, isArray, isInteger, isFn, isNumber, isPlainObject, logWarn, mergeDeep, parseGPTSingleSizeArrayToRtbSize
 } from '../src/utils.js';
 import {registerBidder} from '../src/adapters/bidderFactory.js';
 import {config} from '../src/config.js';
@@ -75,7 +61,7 @@ export const spec = {
    * @param {object} bid The bid to validate.
    * @return boolean True if this is a valid bid, and false otherwise.
    */
-  isBidRequestValid: function (bid) {
+  isBidRequestValid(bid) {
     return !!(bid && bid.params && (bid.params.placementId || (bid.params.placementKey && bid.params.publisherId)));
   },
 
@@ -86,7 +72,7 @@ export const spec = {
    * @param bidderRequest
    * @return ServerRequest Info describing the request to the server.
    */
-  buildRequests: function (bidRequests, bidderRequest) {
+  buildRequests(bidRequests, bidderRequest) {
     // Configuration
     const currency = config.getConfig('currency.adServerCurrency');
 
@@ -109,8 +95,8 @@ export const spec = {
       ext: {
         improvedigital: {
           sdk: {
-            name: 'prebidjs',
-            version: $$PREBID_GLOBAL$$.version,
+            name: 'pbjs',
+            version: '$prebid.version$',
           }
         }
       }
@@ -205,7 +191,7 @@ export const spec = {
    * @param bidderRequest
    * @return {Bid[]} An array of bids which were nested inside the server.
    */
-  interpretResponse: function (serverResponse, { bidderRequest }) {
+  interpretResponse(serverResponse, { bidderRequest }) {
     if (!serverResponse.body) {
       return [];
     }
@@ -261,7 +247,7 @@ export const spec = {
    * @param {ServerResponse[]} serverResponses List of server's responses.
    * @return {UserSync[]} The user syncs which should be dropped.
    */
-  getUserSyncs: function(syncOptions, serverResponses) {
+  getUserSyncs(syncOptions, serverResponses) {
     if (syncOptions.pixelEnabled) {
       const syncs = [];
       serverResponses.forEach(response => {
@@ -279,20 +265,24 @@ export const spec = {
     return [];
   }
 };
+
 registerBidder(spec);
 
 const ID_UTILITY = {
-  getLanguage: function () {
+  getLanguage() {
     return navigator.language.split('-')[0]
   },
-  isInstreamVideo: function (bid) {
+
+  isInstreamVideo(bid) {
     const context = deepAccess(bid, 'mediaTypes.video.context');
     return bid.mediaType === 'video' || context !== 'outstream';
   },
-  isOutstreamVideo: function (bid) {
+
+  isOutstreamVideo(bid) {
     return deepAccess(bid, 'mediaTypes.video.context') === 'outstream';
   },
-  getBidFloor: function (bid) {
+
+  getBidFloor(bid) {
     if (!isFn(bid.getFloor)) {
       return null;
     }
@@ -306,7 +296,8 @@ const ID_UTILITY = {
     }
     return null;
   },
-  outstreamRender: function (bid) {
+
+  outstreamRender(bid) {
     bid.renderer.push(() => {
       window.ANOutstreamVideo.renderAd({
         sizes: [bid.width, bid.height],
@@ -316,10 +307,12 @@ const ID_UTILITY = {
       }, ID_UTILITY.handleOutstreamRendererEvents.bind(null, bid));
     });
   },
-  handleOutstreamRendererEvents: function (bid, id, eventName) {
+
+  handleOutstreamRendererEvents(bid, id, eventName) {
     bid.renderer.handleVideoEvent({ id, eventName });
   },
-  createRenderer: function (bidRequest) {
+
+  createRenderer(bidRequest) {
     const renderer = Renderer.install({
       id: bidRequest.adUnitCode,
       url: RENDERER_URL,
@@ -334,7 +327,8 @@ const ID_UTILITY = {
     }
     return renderer;
   },
-  getNormalizedBidRequest: function (bid) {
+
+  getNormalizedBidRequest(bid) {
     let adUnitId = getBidIdParameter('adUnitCode', bid) || null;
     let placementId = getBidIdParameter('placementId', bid.params) || null;
     let publisherId = null;
@@ -403,7 +397,8 @@ const ID_UTILITY = {
 
     return normalizedBidRequest;
   },
-  isValidSize: function (sizePair) {
+
+  isValidSize(sizePair) {
     return sizePair.length === 2 &&
       isInteger(sizePair[0]) &&
       isInteger(sizePair[1]) &&
@@ -413,7 +408,7 @@ const ID_UTILITY = {
 };
 
 const ID_REQUEST = {
-  buildImpression: function (bidRequest) {
+  buildImpression(bidRequest) {
     const placementObject = ID_UTILITY.getNormalizedBidRequest(bidRequest);
     const impressionObject = {
       id: placementObject.id || getUniqueIdentifierStr(),
@@ -461,7 +456,8 @@ const ID_REQUEST = {
 
     return impressionObject;
   },
-  buildVideoRequest: function (bidRequest) {
+
+  buildVideoRequest(bidRequest) {
     let videoParams = deepClone(deepAccess(bidRequest, 'mediaTypes.video'));
     const videoParamsExt = deepAccess(bidRequest, 'params.video');
 
@@ -487,7 +483,8 @@ const ID_REQUEST = {
     });
     return videoParams;
   },
-  buildBannerRequest: function (bidRequest, placementObject) {
+
+  buildBannerRequest(bidRequest, placementObject) {
     // Set of desired creative sizes
     // Input Format: array of pairs, i.e. [[300, 250], [250, 250]]
     let sizes;
@@ -502,7 +499,8 @@ const ID_REQUEST = {
         .map(parseGPTSingleSizeArrayToRtbSize)
     };
   },
-  buildNativeRequest: function (bidRequest) {
+
+  buildNativeRequest(bidRequest) {
     const nativeRequest = bidRequest.mediaTypes.native;
     const request = {
       assets: [],
@@ -545,7 +543,7 @@ const ID_REQUEST = {
 };
 
 const ID_RESPONSE = {
-  buildAd: function (bidObject, bid, bidRequest, bidResponse) {
+  buildAd(bidObject, bid, bidRequest, bidResponse) {
     if (deepAccess(bidObject, 'mediaTypes.video')) {
       ID_RESPONSE.buildVideoAd(bid, bidRequest, bidResponse);
     } else if (deepAccess(bidObject, 'mediaTypes.banner')) {
@@ -554,7 +552,8 @@ const ID_RESPONSE = {
       ID_RESPONSE.buildNativeAd(bid, bidRequest, bidResponse)
     }
   },
-  buildVideoAd: function (bid, bidRequest, bidResponse) {
+
+  buildVideoAd(bid, bidRequest, bidResponse) {
     bid.mediaType = VIDEO;
     bid.vastXml = bidResponse.adm;
     if (ID_UTILITY.isOutstreamVideo(bidRequest)) {
@@ -566,7 +565,8 @@ const ID_RESPONSE = {
       bid.renderer = ID_UTILITY.createRenderer(bidRequest);
     }
   },
-  buildBannerAd: function (bid, bidRequest, bidResponse) {
+
+  buildBannerAd(bid, bidRequest, bidResponse) {
     bid.mediaType = BANNER;
     if (bidResponse.nurl) {
       bid.nurl = bidResponse.nurl;
@@ -577,7 +577,8 @@ const ID_RESPONSE = {
       bid.height = bidResponse.h;
     }
   },
-  buildNativeAd: function (bid, bidRequest, bidResponse) {
+
+  buildNativeAd(bid, bidRequest, bidResponse) {
     bid.mediaType = NATIVE;
     const native = JSON.parse(bidResponse.adm)
     const nativeAd = {
@@ -612,7 +613,8 @@ const ID_RESPONSE = {
     });
     bid.native = nativeAd;
   },
-  fillDealId: function (bid, idExt) {
+
+  fillDealId(bid, idExt) {
     // Deal ID_RESPONSE. Composite ads can have multiple line items and the ID_RESPONSE of the first
     // dealID line item will be used.
     const lineItemId = idExt.line_item_id;
