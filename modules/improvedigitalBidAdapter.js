@@ -75,6 +75,9 @@ export const spec = {
   buildRequests(bidRequests, bidderRequest) {
     // Configuration
     const currency = config.getConfig('currency.adServerCurrency');
+    const coppa = config.getConfig('coppa');
+    const fpd = config.getConfig('ortb2');
+    const singleRequestMode = config.getConfig('improvedigital.singleRequest') === true;
 
     // Device related information
     const ua = navigator.userAgent;
@@ -102,11 +105,8 @@ export const spec = {
       }
     };
 
-    // Impressions
-    request.imp = bidRequests.map((bidRequest) => ID_REQUEST.buildImpression(bidRequest));
-
     // Coppa
-    if (config.getConfig('coppa')) {
+    if (coppa) {
       deepSetValue(request, 'regs.coppa', 1);
     }
 
@@ -143,7 +143,6 @@ export const spec = {
     }
 
     // Adding first party data
-    const fpd = config.getConfig('ortb2');
     if (fpd) {
       if (fpd.site) {
         request.site = {...request.site, ...fpd.site};
@@ -176,12 +175,31 @@ export const spec = {
       }
     }
 
-    return {
-      method: 'POST',
-      url: REQUEST_URL,
-      data: JSON.stringify(request),
-      bidderRequest: bidderRequest
-    };
+    if (singleRequestMode || bidRequests.length === 1) {
+      // Impressions
+      request.imp = bidRequests.map((bidRequest) => ID_REQUEST.buildImpression(bidRequest));
+      return {
+        method: 'POST',
+        url: REQUEST_URL,
+        data: JSON.stringify(request),
+        bidderRequest: bidderRequest
+      };
+    }
+
+    return bidRequests.map((bidRequest, id) => {
+      const req = deepClone(request);
+      req.id = bidRequest.bidId || getUniqueIdentifierStr();
+      req.imp = [].concat(ID_REQUEST.buildImpression(bidRequest));
+      if (bidRequest.transactionId) {
+        deepSetValue(req, 'source.tid', bidRequest.transactionId);
+      }
+      return {
+        method: 'POST',
+        url: REQUEST_URL,
+        data: JSON.stringify(req),
+        bidderRequest: bidderRequest
+      };
+    });
   },
 
   /**
