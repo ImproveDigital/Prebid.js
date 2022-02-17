@@ -78,7 +78,7 @@ export const spec = {
       id: getUniqueIdentifierStr(),
       device: {
         ua: navigator.userAgent,
-        language: ID_UTILITY.getLanguage(),
+        language: ID_UTIL.getLanguage(),
         w: screen.width,
         h: screen.height,
       },
@@ -94,18 +94,21 @@ export const spec = {
     };
 
     // Set Timeout
-    ID_UTILITY.setValue(request, 'tmax', bidderRequest.timeout);
+    ID_UTIL.setValue(request, 'tmax', bidderRequest.timeout);
 
     // Coppa
     const coppa = config.getConfig('coppa');
-    ID_UTILITY.setValue(request, 'regs.coppa', typeof coppa === 'boolean' ? ID_UTILITY.toBit(coppa) : undefined);
+    if (typeof coppa === 'boolean') {
+      ID_UTIL.setValue(request, 'regs.coppa', ID_UTIL.toBit(coppa));
+    }
 
     // GDPR
     const gdprConsent = deepAccess(bidderRequest, 'gdprConsent')
     if (gdprConsent) {
-      // GDPR Consent String
-      ID_UTILITY.setValue(request, 'regs.ext.gdpr', typeof gdprConsent.gdprApplies === 'boolean' ? ID_UTILITY.toBit(gdprConsent.gdprApplies) : undefined);
-      ID_UTILITY.setValue(request, 'user.ext.consent', gdprConsent.consentString);
+      if (typeof gdprConsent.gdprApplies === 'boolean') {
+        ID_UTIL.setValue(request, 'regs.ext.gdpr', ID_UTIL.toBit(gdprConsent.gdprApplies));
+      }
+      ID_UTIL.setValue(request, 'user.ext.consent', gdprConsent.consentString);
 
       // Additional Consent String
       const additionalConsent = deepAccess(gdprConsent, 'addtlConsent');
@@ -122,9 +125,9 @@ export const spec = {
 
     if (bidderRequest) {
       // US Privacy
-      ID_UTILITY.setValue(request, 'regs.ext.us_privacy', bidderRequest.uspConsent);
+      ID_UTIL.setValue(request, 'regs.ext.us_privacy', bidderRequest.uspConsent);
       // Site Page
-      ID_UTILITY.setValue(request, 'site.page', deepAccess(bidderRequest, 'refererInfo.referer'));
+      ID_UTIL.setValue(request, 'site.page', deepAccess(bidderRequest, 'refererInfo.referer'));
     }
 
     // Adding first party data
@@ -146,12 +149,12 @@ export const spec = {
 
     const bidRequest = bidRequests[0];
 
-    ID_UTILITY.setValue(request, 'source.ext.schain', bidRequest.schain);
-    ID_UTILITY.setValue(request, 'source.tid', bidRequest.transactionId);
+    ID_UTIL.setValue(request, 'source.ext.schain', bidRequest.schain);
+    ID_UTIL.setValue(request, 'source.tid', bidRequest.transactionId);
 
     if (bidRequest.userId) {
       const eids = createEidsArray(bidRequest.userId);
-      ID_UTILITY.setValue(request, 'user.ext.eids', eids.length ? eids : undefined);
+      ID_UTIL.setValue(request, 'user.ext.eids', eids.length ? eids : undefined);
     }
 
     return ID_REQUEST.buildServerRequests(request, bidRequests, bidderRequest);
@@ -195,7 +198,7 @@ export const spec = {
         }
         bid.netRevenue = idExt.is_net || false;
 
-        ID_UTILITY.setValue(bid, 'meta.advertiserDomains', bidObject.adomain);
+        ID_UTIL.setValue(bid, 'meta.advertiserDomains', bidObject.adomain);
 
         ID_RAZR.addBidData({
           bidRequest,
@@ -237,9 +240,9 @@ export const spec = {
 
 registerBidder(spec);
 
-const ID_UTILITY = {
+const ID_UTIL = {
   setValue(obj, path, value) {
-    if (typeof value !== typeof undefined && value !== '') {
+    if (typeof value !== 'undefined' && value !== '') {
       deepSetValue(obj, path, value);
     }
   },
@@ -296,7 +299,7 @@ const ID_REQUEST = {
         const request = deepClone(requestObject);
         request.id = bidRequest.bidId || getUniqueIdentifierStr();
         request.imp = [ID_REQUEST.buildImp(bidRequest)];
-        ID_UTILITY.setValue(request, 'source.tid', bidRequest.transactionId);
+        ID_UTIL.setValue(request, 'source.tid', bidRequest.transactionId);
         requests.push(this.formatRequest(request, bidderRequest));
       });
     }
@@ -316,11 +319,11 @@ const ID_REQUEST = {
   buildImp(bidRequest) {
     const imp = {
       id: getBidIdParameter('bidId', bidRequest) || getUniqueIdentifierStr(),
-      secure: ID_UTILITY.toBit(window.location.protocol === 'https:'),
+      secure: ID_UTIL.toBit(window.location.protocol === 'https:'),
     };
 
     // Floor
-    const bidFloor = ID_UTILITY.getBidFloor(bidRequest) || getBidIdParameter('bidFloor', bidRequest.params);
+    const bidFloor = ID_UTIL.getBidFloor(bidRequest) || getBidIdParameter('bidFloor', bidRequest.params);
     if (bidFloor) {
       const bidFloorCur = getBidIdParameter('bidFloorCur', bidRequest.params) || 'USD';
       deepSetValue(imp, 'bidfloor', bidFloor);
@@ -329,20 +332,20 @@ const ID_REQUEST = {
 
     const placementId = getBidIdParameter('placementId', bidRequest.params);
     if (placementId) {
-      ID_UTILITY.setValue(imp, 'ext.bidder.placementId', placementId);
+      ID_UTIL.setValue(imp, 'ext.bidder.placementId', placementId);
     } else {
-      ID_UTILITY.setValue(imp, 'ext.bidder.publisherId', getBidIdParameter('publisherId', bidRequest.params));
-      ID_UTILITY.setValue(imp, 'ext.bidder.placementKey', getBidIdParameter('placementKey', bidRequest.params));
+      ID_UTIL.setValue(imp, 'ext.bidder.publisherId', getBidIdParameter('publisherId', bidRequest.params));
+      ID_UTIL.setValue(imp, 'ext.bidder.placementKey', getBidIdParameter('placementKey', bidRequest.params));
     }
 
-    ID_UTILITY.setValue(imp, 'ext.bidder.keyValues', getBidIdParameter('keyValues', bidRequest.params));
+    ID_UTIL.setValue(imp, 'ext.bidder.keyValues', getBidIdParameter('keyValues', bidRequest.params));
 
     // Adding GPID
     const gpid = deepAccess(bidRequest, 'ortb2Imp.ext.gpid') ||
       deepAccess(bidRequest, 'ortb2Imp.ext.data.pbadslot') ||
       deepAccess(bidRequest, 'ortb2Imp.ext.data.adserver.adslot');
 
-    ID_UTILITY.setValue(imp, 'ext.gpid', gpid);
+    ID_UTIL.setValue(imp, 'ext.gpid', gpid);
 
     // Adding Interstitial Signal
     if (deepAccess(bidRequest, 'ortb2Imp.instl')) {
@@ -352,12 +355,12 @@ const ID_REQUEST = {
     const videoMedia = deepAccess(bidRequest, 'mediaTypes.video');
     if (videoMedia) {
       imp.video = this.buildVideoRequest(bidRequest);
-      ID_UTILITY.setValue(imp, 'ext.is_rewarded_inventory', (videoMedia.rewarded === 1 || deepAccess(videoMedia, 'ext.rewarded') === 1) || undefined);
+      ID_UTIL.setValue(imp, 'ext.is_rewarded_inventory', (videoMedia.rewarded === 1 || deepAccess(videoMedia, 'ext.rewarded') === 1) || undefined);
     }
 
     if (deepAccess(bidRequest, 'mediaTypes.banner')) {
       let creativeSizes = null;
-      if (config.getConfig('improvedigital.usePrebidSizes') === true && !ID_UTILITY.isInstreamVideo(bidRequest) && !ID_UTILITY.isOutstreamVideo(bidRequest) && bidRequest.sizes && bidRequest.sizes.length > 0) {
+      if (config.getConfig('improvedigital.usePrebidSizes') === true && !ID_UTIL.isInstreamVideo(bidRequest) && !ID_UTIL.isOutstreamVideo(bidRequest) && bidRequest.sizes && bidRequest.sizes.length > 0) {
         creativeSizes = bidRequest.sizes;
       }
       imp.banner = this.buildBannerRequest(bidRequest, creativeSizes);
@@ -379,12 +382,12 @@ const ID_REQUEST = {
       if (isInteger(videoParams.playerSize[0]) && isInteger(videoParams.playerSize[1])) {
         playerSize = [parseGPTSingleSizeArrayToRtbSize(videoParams.playerSize)];
       } else {
-        playerSize = videoParams.playerSize.filter(ID_UTILITY.isValidSize).map(parseGPTSingleSizeArrayToRtbSize);
+        playerSize = videoParams.playerSize.filter(ID_UTIL.isValidSize).map(parseGPTSingleSizeArrayToRtbSize);
       }
       if (playerSize.length) {
         videoParams = {...videoParams, ...playerSize.shift()}
       }
-      videoParams.placement = ID_UTILITY.isOutstreamVideo(bidRequest) ? VIDEO_PARAMS.PLACEMENT_TYPE.OUTSTREAM : VIDEO_PARAMS.PLACEMENT_TYPE.INSTREAM;
+      videoParams.placement = ID_UTIL.isOutstreamVideo(bidRequest) ? VIDEO_PARAMS.PLACEMENT_TYPE.OUTSTREAM : VIDEO_PARAMS.PLACEMENT_TYPE.INSTREAM;
     }
 
     if (videoParamsExt) videoParams = {...videoParams, ...videoParamsExt};
@@ -414,7 +417,7 @@ const ID_REQUEST = {
 
     return {
       format: sizes
-        .filter(ID_UTILITY.isValidSize)
+        .filter(ID_UTIL.isValidSize)
         .map(parseGPTSingleSizeArrayToRtbSize)
     };
   },
@@ -430,7 +433,7 @@ const ID_REQUEST = {
       if (nativeItem) {
         const asset = {
           id: nativeItem.id,
-          required: ID_UTILITY.toBit(cur.required),
+          required: ID_UTIL.toBit(cur.required),
         };
         switch (nativeItem.assetType) {
           case NATIVE_DATA.ASSET_TYPES.TITLE:
@@ -485,7 +488,7 @@ const ID_RESPONSE = {
   buildVideoAd(bid, bidRequest, bidResponse) {
     bid.mediaType = VIDEO;
     bid.vastXml = bidResponse.adm;
-    if (ID_UTILITY.isOutstreamVideo(bidRequest)) {
+    if (ID_UTIL.isOutstreamVideo(bidRequest)) {
       bid.adResponse = {
         content: bid.vastXml,
         height: bidResponse.h,
@@ -533,7 +536,7 @@ const ID_RESPONSE = {
       nativeAd.impressionTrackers = native.imptrackers || [];
       nativeAd.javascriptTrackers = native.jstracker;
     }
-    ID_UTILITY.setValue(nativeAd, 'privacyLink', native.privacy);
+    ID_UTIL.setValue(nativeAd, 'privacyLink', native.privacy);
     const NATIVE_PARAMS_RESPONSE = {};
     Object.values(NATIVE_DATA.PARAMS).map(param => {
       NATIVE_PARAMS_RESPONSE[param.id] = param;
