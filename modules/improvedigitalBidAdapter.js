@@ -93,9 +93,6 @@ export const spec = {
       }
     };
 
-    // Set Timeout
-    ID_UTILITY.setValue(request, 'tmax', bidderRequest.timeout);
-
     // Coppa
     const coppa = config.getConfig('coppa');
     ID_UTILITY.setValue(request, 'regs.coppa', typeof coppa === 'boolean' ? ID_UTILITY.toBit(coppa) : undefined);
@@ -121,6 +118,8 @@ export const spec = {
     }
 
     if (bidderRequest) {
+      // Set Timeout
+      ID_UTILITY.setValue(request, 'tmax', bidderRequest.timeout);
       // US Privacy
       ID_UTILITY.setValue(request, 'regs.ext.us_privacy', bidderRequest.uspConsent);
       // Site Page
@@ -289,13 +288,13 @@ const ID_REQUEST = {
   buildServerRequests(requestObject, bidRequests, bidderRequest) {
     const requests = [];
     if (config.getConfig('improvedigital.singleRequest') === true) {
-      requestObject.imp = bidRequests.map(this.buildImp);
+      requestObject.imp = bidRequests.map((bidRequest) => this.buildImp(bidRequest));
       requests[0] = this.formatRequest(requestObject, bidderRequest);
     } else {
       bidRequests.map((bidRequest) => {
         const request = deepClone(requestObject);
         request.id = bidRequest.bidId || getUniqueIdentifierStr();
-        request.imp = [ID_REQUEST.buildImp(bidRequest)];
+        request.imp = [this.buildImp(bidRequest)];
         ID_UTILITY.setValue(request, 'source.tid', bidRequest.transactionId);
         requests.push(this.formatRequest(request, bidderRequest));
       });
@@ -323,8 +322,8 @@ const ID_REQUEST = {
     const bidFloor = ID_UTILITY.getBidFloor(bidRequest) || getBidIdParameter('bidFloor', bidRequest.params);
     if (bidFloor) {
       const bidFloorCur = getBidIdParameter('bidFloorCur', bidRequest.params) || 'USD';
-      deepSetValue(imp, 'bidfloor', bidFloor);
-      deepSetValue(imp, 'bidfloorcur', bidFloorCur.toUpperCase());
+      ID_UTILITY.setValue(imp, 'bidfloor', bidFloor);
+      ID_UTILITY.setValue(imp, 'bidfloorcur', bidFloorCur ? bidFloorCur.toUpperCase() : undefined);
     }
 
     const placementId = getBidIdParameter('placementId', bidRequest.params);
