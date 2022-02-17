@@ -81,7 +81,6 @@ export const spec = {
         language: ID_UTILITY.getLanguage(),
         w: screen.width,
         h: screen.height,
-        ip: '91.199.242.236', // @todo - remove IP address
       },
       cur: [config.getConfig('currency.adServerCurrency') || 'USD'],
       ext: {
