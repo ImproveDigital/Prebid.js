@@ -1,6 +1,6 @@
 import {
   cleanObj, deepAccess, deepClone, deepSetValue, getBidIdParameter, getBidRequest, getDNT,
-  getUniqueIdentifierStr, isArray, isFn, isNumber, isPlainObject, logWarn, mergeDeep
+  getUniqueIdentifierStr, isArray, isFn, isNumber, isPlainObject, logWarn, mergeDeep, parseUrl
 } from '../src/utils.js';
 import {registerBidder} from '../src/adapters/bidderFactory.js';
 import {config} from '../src/config.js';
@@ -125,8 +125,11 @@ export const spec = {
       deepSetValue(request, 'tmax', bidderRequest.timeout);
       // US Privacy
       deepSetValue(request, 'regs.ext.us_privacy', bidderRequest.uspConsent);
-      // Site Page
-      deepSetValue(request, 'site.page', deepAccess(bidderRequest, 'refererInfo.referer'));
+      // Site
+      const url = config.getConfig('pageUrl') || deepAccess(bidderRequest, 'refererInfo.referer');
+      const urlObj = parseUrl(url);
+      deepSetValue(request, 'site.page', url);
+      deepSetValue(request, 'site.domain', urlObj && urlObj.hostname);
     }
 
     // Adding first party data
