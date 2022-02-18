@@ -96,16 +96,16 @@ export const spec = {
     // Coppa
     const coppa = config.getConfig('coppa');
     if (typeof coppa === 'boolean') {
-      ID_UTIL.setValue(request, 'regs.coppa', ID_UTIL.toBit(coppa));
+      deepSetValue(request, 'regs.coppa', ID_UTIL.toBit(coppa));
     }
 
     // GDPR
     const gdprConsent = deepAccess(bidderRequest, 'gdprConsent')
     if (gdprConsent) {
       if (typeof gdprConsent.gdprApplies === 'boolean') {
-        ID_UTIL.setValue(request, 'regs.ext.gdpr', ID_UTIL.toBit(gdprConsent.gdprApplies));
+        deepSetValue(request, 'regs.ext.gdpr', ID_UTIL.toBit(gdprConsent.gdprApplies));
       }
-      ID_UTIL.setValue(request, 'user.ext.consent', gdprConsent.consentString);
+      deepSetValue(request, 'user.ext.consent', gdprConsent.consentString);
 
       // Additional Consent String
       const additionalConsent = deepAccess(gdprConsent, 'addtlConsent');
@@ -122,11 +122,11 @@ export const spec = {
 
     if (bidderRequest) {
       // Set Timeout
-      ID_UTIL.setValue(request, 'tmax', bidderRequest.timeout);
+      deepSetValue(request, 'tmax', bidderRequest.timeout);
       // US Privacy
-      ID_UTIL.setValue(request, 'regs.ext.us_privacy', bidderRequest.uspConsent);
+      deepSetValue(request, 'regs.ext.us_privacy', bidderRequest.uspConsent);
       // Site Page
-      ID_UTIL.setValue(request, 'site.page', deepAccess(bidderRequest, 'refererInfo.referer'));
+      deepSetValue(request, 'site.page', deepAccess(bidderRequest, 'refererInfo.referer'));
     }
 
     // Adding first party data
@@ -148,12 +148,12 @@ export const spec = {
 
     const bidRequest = bidRequests[0];
 
-    ID_UTIL.setValue(request, 'source.ext.schain', bidRequest.schain);
-    ID_UTIL.setValue(request, 'source.tid', bidRequest.transactionId);
+    deepSetValue(request, 'source.ext.schain', bidRequest.schain);
+    deepSetValue(request, 'source.tid', bidRequest.transactionId);
 
     if (bidRequest.userId) {
       const eids = createEidsArray(bidRequest.userId);
-      ID_UTIL.setValue(request, 'user.ext.eids', eids.length ? eids : undefined);
+      deepSetValue(request, 'user.ext.eids', eids.length ? eids : undefined);
     }
 
     return ID_REQUEST.buildServerRequests(request, bidRequests, bidderRequest);
@@ -197,7 +197,7 @@ export const spec = {
         }
         bid.netRevenue = idExt.is_net || false;
 
-        ID_UTIL.setValue(bid, 'meta.advertiserDomains', bidObject.adomain);
+        deepSetValue(bid, 'meta.advertiserDomains', bidObject.adomain);
 
         ID_RAZR.addBidData({
           bidRequest,
@@ -240,12 +240,6 @@ export const spec = {
 registerBidder(spec);
 
 const ID_UTIL = {
-  setValue(obj, path, value) {
-    if (typeof value !== 'undefined' && value !== '') {
-      deepSetValue(obj, path, value);
-    }
-  },
-
   toBit(val) {
     return val ? 1 : 0;
   },
@@ -295,7 +289,7 @@ const ID_REQUEST = {
         const request = deepClone(requestObject);
         request.id = bidRequest.bidId || getUniqueIdentifierStr();
         request.imp = [this.buildImp(bidRequest)];
-        ID_UTIL.setValue(request, 'source.tid', bidRequest.transactionId);
+        deepSetValue(request, 'source.tid', bidRequest.transactionId);
         requests.push(this.formatRequest(request, bidderRequest));
       });
     }
@@ -322,26 +316,26 @@ const ID_REQUEST = {
     const bidFloor = ID_UTIL.getBidFloor(bidRequest) || getBidIdParameter('bidFloor', bidRequest.params);
     if (bidFloor) {
       const bidFloorCur = getBidIdParameter('bidFloorCur', bidRequest.params) || 'USD';
-      ID_UTIL.setValue(imp, 'bidfloor', bidFloor);
-      ID_UTIL.setValue(imp, 'bidfloorcur', bidFloorCur ? bidFloorCur.toUpperCase() : undefined);
+      deepSetValue(imp, 'bidfloor', bidFloor);
+      deepSetValue(imp, 'bidfloorcur', bidFloorCur ? bidFloorCur.toUpperCase() : undefined);
     }
 
     const placementId = getBidIdParameter('placementId', bidRequest.params);
     if (placementId) {
-      ID_UTIL.setValue(imp, 'ext.bidder.placementId', placementId);
+      deepSetValue(imp, 'ext.bidder.placementId', placementId);
     } else {
-      ID_UTIL.setValue(imp, 'ext.bidder.publisherId', getBidIdParameter('publisherId', bidRequest.params));
-      ID_UTIL.setValue(imp, 'ext.bidder.placementKey', getBidIdParameter('placementKey', bidRequest.params));
+      deepSetValue(imp, 'ext.bidder.publisherId', getBidIdParameter('publisherId', bidRequest.params));
+      deepSetValue(imp, 'ext.bidder.placementKey', getBidIdParameter('placementKey', bidRequest.params));
     }
 
-    ID_UTIL.setValue(imp, 'ext.bidder.keyValues', getBidIdParameter('keyValues', bidRequest.params));
+    deepSetValue(imp, 'ext.bidder.keyValues', getBidIdParameter('keyValues', bidRequest.params));
 
     // Adding GPID
     const gpid = deepAccess(bidRequest, 'ortb2Imp.ext.gpid') ||
       deepAccess(bidRequest, 'ortb2Imp.ext.data.pbadslot') ||
       deepAccess(bidRequest, 'ortb2Imp.ext.data.adserver.adslot');
 
-    ID_UTIL.setValue(imp, 'ext.gpid', gpid);
+    deepSetValue(imp, 'ext.gpid', gpid);
 
     // Adding Interstitial Signal
     if (deepAccess(bidRequest, 'ortb2Imp.instl')) {
@@ -351,7 +345,7 @@ const ID_REQUEST = {
     const videoParams = deepAccess(bidRequest, 'mediaTypes.video');
     if (videoParams) {
       imp.video = this.buildVideoRequest(bidRequest);
-      ID_UTIL.setValue(imp, 'ext.is_rewarded_inventory', (videoParams.rewarded === 1 || deepAccess(videoParams, 'ext.rewarded') === 1) || undefined);
+      deepSetValue(imp, 'ext.is_rewarded_inventory', (videoParams.rewarded === 1 || deepAccess(videoParams, 'ext.rewarded') === 1) || undefined);
     }
 
     if (deepAccess(bidRequest, 'mediaTypes.banner')) {
@@ -515,7 +509,7 @@ const ID_RESPONSE = {
       nativeAd.impressionTrackers = native.imptrackers || [];
       nativeAd.javascriptTrackers = native.jstracker;
     }
-    ID_UTIL.setValue(nativeAd, 'privacyLink', native.privacy);
+    deepSetValue(nativeAd, 'privacyLink', native.privacy);
     const NATIVE_PARAMS_RESPONSE = {};
     Object.values(NATIVE_DATA.PARAMS).map(param => {
       NATIVE_PARAMS_RESPONSE[param.id] = param;
