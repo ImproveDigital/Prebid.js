@@ -1,6 +1,6 @@
 import {
-  cleanObj, deepAccess, deepClone, deepSetValue, getAdUnitSizes, getBidIdParameter, getBidRequest, getDNT,
-  getUniqueIdentifierStr, isArray, isInteger, isFn, isNumber, isPlainObject, logWarn, mergeDeep, parseGPTSingleSizeArrayToRtbSize
+  cleanObj, deepAccess, deepClone, deepSetValue, getBidIdParameter, getBidRequest, getDNT,
+  getUniqueIdentifierStr, isArray, isFn, isNumber, isPlainObject, logWarn, mergeDeep
 } from '../src/utils.js';
 import {registerBidder} from '../src/adapters/bidderFactory.js';
 import {config} from '../src/config.js';
@@ -11,7 +11,7 @@ import {createEidsArray} from './userId/eids.js';
 const BIDDER_CODE = 'improvedigital';
 const RENDERER_URL = 'https://acdn.adnxs.com/video/outstream/ANOutstreamVideo.js';
 const REQUEST_URL = 'https://ad.360yield.com/pb';
-const TTL = 300;
+const CREATIVE_TTL = 300;
 
 const VIDEO_PARAMS = {
   DEFAULT_MIMES: ['video/mp4'],
@@ -186,7 +186,7 @@ export const spec = {
           cpm: bidResponse.price,
           creativeId: bidResponse.crid,
           currency: cur,
-          ttl: TTL,
+          ttl: CREATIVE_TTL,
         }
 
         ID_RESPONSE.buildAd(bidObject, bid, bidRequest, bidResponse);
@@ -278,12 +278,9 @@ const ID_UTIL = {
     return null;
   },
 
-  isValidSize(sizePair) {
-    return sizePair.length === 2 &&
-      isInteger(sizePair[0]) &&
-      isInteger(sizePair[1]) &&
-      sizePair[0] >= 0 &&
-      sizePair[1] >= 0;
+  // Convert [x, y] to { w: x, h: y}
+  sizeToRtb(size) {
+    return {w: size[0], h: size[1]};
   }
 };
 
@@ -351,18 +348,14 @@ const ID_REQUEST = {
       imp.instl = 1;
     }
 
-    const videoMedia = deepAccess(bidRequest, 'mediaTypes.video');
-    if (videoMedia) {
+    const videoParams = deepAccess(bidRequest, 'mediaTypes.video');
+    if (videoParams) {
       imp.video = this.buildVideoRequest(bidRequest);
-      ID_UTIL.setValue(imp, 'ext.is_rewarded_inventory', (videoMedia.rewarded === 1 || deepAccess(videoMedia, 'ext.rewarded') === 1) || undefined);
+      ID_UTIL.setValue(imp, 'ext.is_rewarded_inventory', (videoParams.rewarded === 1 || deepAccess(videoParams, 'ext.rewarded') === 1) || undefined);
     }
 
     if (deepAccess(bidRequest, 'mediaTypes.banner')) {
-      let creativeSizes = null;
-      if (config.getConfig('improvedigital.usePrebidSizes') === true && !ID_UTIL.isInstreamVideo(bidRequest) && !ID_UTIL.isOutstreamVideo(bidRequest) && bidRequest.sizes && bidRequest.sizes.length > 0) {
-        creativeSizes = bidRequest.sizes;
-      }
-      imp.banner = this.buildBannerRequest(bidRequest, creativeSizes);
+      imp.banner = this.buildBannerRequest(bidRequest);
     }
 
     if (deepAccess(bidRequest, 'mediaTypes.native')) {
@@ -373,52 +366,39 @@ const ID_REQUEST = {
   },
 
   buildVideoRequest(bidRequest) {
-    let videoParams = deepClone(deepAccess(bidRequest, 'mediaTypes.video'));
-    const videoParamsExt = deepAccess(bidRequest, 'params.video');
+    const videoParams = deepClone(deepAccess(bidRequest, 'mediaTypes.video') || {});
+    const videoImproveParams = deepAccess(bidRequest, 'params.video') || {};
+    const video = {...videoParams, ...videoImproveParams};
 
-    if (isArray(videoParams.playerSize)) {
-      let playerSize;
-      if (isInteger(videoParams.playerSize[0]) && isInteger(videoParams.playerSize[1])) {
-        playerSize = [parseGPTSingleSizeArrayToRtbSize(videoParams.playerSize)];
-      } else {
-        playerSize = videoParams.playerSize.filter(ID_UTIL.isValidSize).map(parseGPTSingleSizeArrayToRtbSize);
-      }
-      if (playerSize.length) {
-        videoParams = {...videoParams, ...playerSize.shift()}
-      }
-      videoParams.placement = ID_UTIL.isOutstreamVideo(bidRequest) ? VIDEO_PARAMS.PLACEMENT_TYPE.OUTSTREAM : VIDEO_PARAMS.PLACEMENT_TYPE.INSTREAM;
+    if (isArray(video.playerSize)) {
+      // Player size can be defined as [w, h] or [[w, h]]
+      const size = isArray(video.playerSize[0]) ? video.playerSize[0] : video.playerSize;
+      video.w = size[0];
+      video.h = size[1];
     }
-
-    if (videoParamsExt) videoParams = {...videoParams, ...videoParamsExt};
+    video.placement = ID_UTIL.isOutstreamVideo(bidRequest) ? VIDEO_PARAMS.PLACEMENT_TYPE.OUTSTREAM : VIDEO_PARAMS.PLACEMENT_TYPE.INSTREAM;
 
     // Mimes is required
-    if (!videoParams.mimes) {
-      videoParams.mimes = VIDEO_PARAMS.DEFAULT_MIMES;
+    if (!video.mimes) {
+      video.mimes = VIDEO_PARAMS.DEFAULT_MIMES;
     }
 
-    const videoProperties = Object.keys(videoParams);
-
-    videoProperties.forEach(prop => {
-      if (VIDEO_PARAMS.SUPPORTED_PROPERTIES.indexOf(prop) === -1) delete videoParams[prop];
+    Object.keys(video).forEach(prop => {
+      if (VIDEO_PARAMS.SUPPORTED_PROPERTIES.indexOf(prop) === -1) delete video[prop];
     });
-    return videoParams;
+    return video;
   },
 
-  buildBannerRequest(bidRequest, creativeSizes) {
+  buildBannerRequest(bidRequest) {
     // Set of desired creative sizes
     // Input Format: array of pairs, i.e. [[300, 250], [250, 250]]
-    let sizes;
-    if (creativeSizes && isArray(creativeSizes)) {
-      sizes = creativeSizes.map(sizePair => { return { w: sizePair[0], h: sizePair[1] } });
-    } else {
-      sizes = getAdUnitSizes(bidRequest);
+    // Unless improvedigital.usePrebidSizes == true, no sizes are sent to the server
+    // and the sizes defined in the server for the placement get used
+    const banner = {};
+    if (config.getConfig('improvedigital.usePrebidSizes') === true && bidRequest.sizes) {
+      banner.format = bidRequest.sizes.map(ID_UTIL.sizeToRtb);
     }
-
-    return {
-      format: sizes
-        .filter(ID_UTIL.isValidSize)
-        .map(parseGPTSingleSizeArrayToRtbSize)
-    };
+    return banner;
   },
 
   buildNativeRequest(bidRequest) {
@@ -639,7 +619,7 @@ const ID_RAZR = {
   },
 
   isValidBid(bid) {
-    return bid && /razr:\\?\/\\?\//.test(bid.ad);
+    return bid && /razr:\/\//.test(bid.ad);
   },
 
   render(bidId, event) {
