@@ -76,12 +76,6 @@ export const spec = {
   buildRequests(bidRequests, bidderRequest) {
     const request = {
       id: getUniqueIdentifierStr(),
-      device: {
-        ua: navigator.userAgent,
-        language: ID_UTIL.getLanguage(),
-        w: screen.width,
-        h: screen.height,
-      },
       cur: [config.getConfig('currency.adServerCurrency') || 'USD'],
       ext: {
         improvedigital: {
@@ -93,35 +87,43 @@ export const spec = {
       }
     };
 
+    // Device
+    request.device = (typeof config.getConfig('device') === 'object') ? config.getConfig('device') : {};
+    request.device.w = request.device.w || window.innerWidth;
+    request.device.h = request.device.h || window.innerHeight;
+    if (getDNT()) {
+      request.device.dnt = 1;
+    }
+
     // Coppa
     const coppa = config.getConfig('coppa');
     if (typeof coppa === 'boolean') {
       deepSetValue(request, 'regs.coppa', ID_UTIL.toBit(coppa));
     }
 
-    // GDPR
-    const gdprConsent = deepAccess(bidderRequest, 'gdprConsent')
-    if (gdprConsent) {
-      if (typeof gdprConsent.gdprApplies === 'boolean') {
-        deepSetValue(request, 'regs.ext.gdpr', ID_UTIL.toBit(gdprConsent.gdprApplies));
-      }
-      deepSetValue(request, 'user.ext.consent', gdprConsent.consentString);
-
-      // Additional Consent String
-      const additionalConsent = deepAccess(gdprConsent, 'addtlConsent');
-      if (additionalConsent && additionalConsent.indexOf('~') !== -1) {
-        // Google Ad Tech Provider IDs
-        const atpIds = additionalConsent.substring(additionalConsent.indexOf('~') + 1);
-        deepSetValue(
-          request,
-          'user.ext.consented_providers_settings.consented_providers',
-          atpIds.split('.').map(id => parseInt(id, 10))
-        );
-      }
-    }
-
     if (bidderRequest) {
-      // Set Timeout
+      // GDPR
+      const gdprConsent = deepAccess(bidderRequest, 'gdprConsent')
+      if (gdprConsent) {
+        if (typeof gdprConsent.gdprApplies === 'boolean') {
+          deepSetValue(request, 'regs.ext.gdpr', ID_UTIL.toBit(gdprConsent.gdprApplies));
+        }
+        deepSetValue(request, 'user.ext.consent', gdprConsent.consentString);
+
+        // Additional Consent String
+        const additionalConsent = deepAccess(gdprConsent, 'addtlConsent');
+        if (additionalConsent && additionalConsent.indexOf('~') !== -1) {
+          // Google Ad Tech Provider IDs
+          const atpIds = additionalConsent.substring(additionalConsent.indexOf('~') + 1);
+          deepSetValue(
+            request,
+            'user.ext.consented_providers_settings.consented_providers',
+            atpIds.split('.').map(id => parseInt(id, 10))
+          );
+        }
+      }
+
+      // Timeout
       deepSetValue(request, 'tmax', bidderRequest.timeout);
       // US Privacy
       deepSetValue(request, 'regs.ext.us_privacy', bidderRequest.uspConsent);
@@ -132,30 +134,23 @@ export const spec = {
       deepSetValue(request, 'site.domain', urlObj && urlObj.hostname);
     }
 
-    // Adding first party data
+    // First party data
     const fpd = config.getConfig('ortb2');
     if (fpd) {
       if (fpd.site) {
-        request.site = {...request.site, ...fpd.site};
+        request.site = request.site ? {...request.site, ...fpd.site} : fpd.site;
       } else if (fpd.app) {
         request.app = fpd.app;
       }
-      if (fpd.device) {
-        request.device = {...request.device, ...fpd.device}
-      }
-      if (getDNT()) {
-        request.device.dnt = 1;
-      }
     }
-    // End of adding first party data
 
-    const bidRequest = bidRequests[0];
+    const bidRequest0 = bidRequests[0];
 
-    deepSetValue(request, 'source.ext.schain', bidRequest.schain);
-    deepSetValue(request, 'source.tid', bidRequest.transactionId);
+    deepSetValue(request, 'source.ext.schain', bidRequest0.schain);
+    deepSetValue(request, 'source.tid', bidRequest0.transactionId);
 
-    if (bidRequest.userId) {
-      const eids = createEidsArray(bidRequest.userId);
+    if (bidRequest0.userId) {
+      const eids = createEidsArray(bidRequest0.userId);
       deepSetValue(request, 'user.ext.eids', eids.length ? eids : undefined);
     }
 
@@ -245,10 +240,6 @@ registerBidder(spec);
 const ID_UTIL = {
   toBit(val) {
     return val ? 1 : 0;
-  },
-
-  getLanguage() {
-    return navigator.language.split('-')[0]
   },
 
   isInstreamVideo(bid) {
