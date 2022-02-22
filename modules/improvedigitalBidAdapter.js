@@ -1,6 +1,6 @@
 import {
   cleanObj, deepAccess, deepClone, deepSetValue, getBidIdParameter, getBidRequest, getDNT,
-  getUniqueIdentifierStr, isArray, isFn, isNumber, isPlainObject, logWarn, mergeDeep, parseUrl
+  getUniqueIdentifierStr, isFn, isNumber, isPlainObject, logWarn, mergeDeep, parseUrl
 } from '../src/utils.js';
 import {registerBidder} from '../src/adapters/bidderFactory.js';
 import {config} from '../src/config.js';
@@ -165,35 +165,33 @@ export const spec = {
    * @return {Bid[]} An array of bids which were nested inside the server.
    */
   interpretResponse(serverResponse, { bidderRequest }) {
-    if (!serverResponse.body) {
+    if (!Array.isArray(deepAccess(serverResponse, 'body.seatbid'))) {
       return [];
     }
-    const {seatbid, cur} = serverResponse.body;
-    const bidResponses = [].concat(...seatbid.map(seat => seat.bid)).reduce((result, bid) => {
-      result[bid.impid] = bid;
-      return result;
-    }, []);
 
     const bids = [];
-    bidderRequest.bids.map((bidObject) => {
-      const bidRequest = getBidRequest(bidObject.bidId, [bidderRequest]);
-      const bidResponse = bidResponses[bidObject.bidId];
-      if (bidResponse && bidResponse.adm && bidResponse.price) {
+    serverResponse.body.seatbid.forEach(seatbid => {
+      if (!Array.isArray(seatbid.bid)) return;
+      seatbid.bid.forEach(bidObject => {
+        if (!bidObject.adm || !bidObject.price || bidObject.hasOwnProperty('errorCode')) {
+          return;
+        }
+        const bidRequest = getBidRequest(bidObject.impid, [bidderRequest]);
         const bid = {
-          requestId: bidObject.bidId,
-          cpm: bidResponse.price,
-          creativeId: bidResponse.crid,
-          currency: cur,
+          requestId: bidObject.impid,
+          cpm: bidObject.price,
+          creativeId: bidObject.crid,
+          currency: serverResponse.body.cur || 'USD',
           ttl: CREATIVE_TTL,
         }
 
-        ID_RESPONSE.buildAd(bidObject, bid, bidRequest, bidResponse);
+        ID_RESPONSE.buildAd(bid, bidRequest, bidObject);
 
-        const idExt = deepAccess(bidResponse, 'ext.' + BIDDER_CODE);
+        const idExt = deepAccess(bidObject, `ext.${BIDDER_CODE}`);
         if (idExt) {
           ID_RESPONSE.fillDealId(bid, idExt);
+          bid.netRevenue = idExt.is_net || false;
         }
-        bid.netRevenue = idExt.is_net || false;
 
         deepSetValue(bid, 'meta.advertiserDomains', bidObject.adomain);
 
@@ -203,7 +201,7 @@ export const spec = {
         });
 
         bids.push(bid);
-      }
+      });
     });
 
     return bids;
@@ -220,14 +218,12 @@ export const spec = {
     if (syncOptions.pixelEnabled) {
       const syncs = [];
       serverResponses.forEach(response => {
-        const ext = response.body.ext;
-        if (ext && ext[BIDDER_CODE] && isArray(ext[BIDDER_CODE].sync)) {
-          ext[BIDDER_CODE].sync.forEach(syncElement => {
-            if (syncs.indexOf(syncElement) === -1) {
-              syncs.push(syncElement);
-            }
-          });
-        }
+        const syncArr = deepAccess(response, `body.ext.${BIDDER_CODE}.sync`, []);
+        syncArr.forEach(syncElement => {
+          if (syncs.indexOf(syncElement) === -1) {
+            syncs.push(syncElement);
+          }
+        });
       });
       return syncs.map(sync => ({ type: 'image', url: sync }));
     }
@@ -358,9 +354,9 @@ const ID_REQUEST = {
     const videoImproveParams = deepAccess(bidRequest, 'params.video') || {};
     const video = {...videoParams, ...videoImproveParams};
 
-    if (isArray(video.playerSize)) {
+    if (Array.isArray(video.playerSize)) {
       // Player size can be defined as [w, h] or [[w, h]]
-      const size = isArray(video.playerSize[0]) ? video.playerSize[0] : video.playerSize;
+      const size = Array.isArray(video.playerSize[0]) ? video.playerSize[0] : video.playerSize;
       video.w = size[0];
       video.h = size[1];
     }
@@ -432,13 +428,13 @@ const ID_REQUEST = {
 };
 
 const ID_RESPONSE = {
-  buildAd(bidObject, bid, bidRequest, bidResponse) {
-    if (bidObject.mediaTypes && Object.keys(bidObject.mediaTypes).length === 1) {
-      if (deepAccess(bidObject, 'mediaTypes.video')) {
+  buildAd(bid, bidRequest, bidResponse) {
+    if (bidRequest.mediaTypes && Object.keys(bidRequest.mediaTypes).length === 1) {
+      if (deepAccess(bidRequest, 'mediaTypes.video')) {
         this.buildVideoAd(bid, bidRequest, bidResponse);
-      } else if (deepAccess(bidObject, 'mediaTypes.banner')) {
+      } else if (deepAccess(bidRequest, 'mediaTypes.banner')) {
         this.buildBannerAd(bid, bidRequest, bidResponse);
-      } else if (deepAccess(bidObject, 'mediaTypes.native')) {
+      } else if (deepAccess(bidRequest, 'mediaTypes.native')) {
         this.buildNativeAd(bid, bidRequest, bidResponse)
       }
     } else {
