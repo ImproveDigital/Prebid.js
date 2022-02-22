@@ -275,6 +275,7 @@ const ID_UTIL = {
 const ID_REQUEST = {
   buildServerRequests(requestObject, bidRequests, bidderRequest) {
     const requests = [];
+    this.impIds = new Set();
     if (config.getConfig('improvedigital.singleRequest') === true) {
       requestObject.imp = bidRequests.map((bidRequest) => this.buildImp(bidRequest));
       requests[0] = this.formatRequest(requestObject, bidderRequest);
@@ -302,7 +303,7 @@ const ID_REQUEST = {
 
   buildImp(bidRequest) {
     const imp = {
-      id: getBidIdParameter('bidId', bidRequest) || getUniqueIdentifierStr(),
+      id: this.generateImpId(bidRequest.adUnitCode),
       secure: ID_UTIL.toBit(window.location.protocol === 'https:'),
     };
 
@@ -351,6 +352,18 @@ const ID_REQUEST = {
     }
 
     return imp;
+  },
+
+  generateImpId(adUnitCode) {
+    // Add index in case of a duplicate imp.id
+    let impId = adUnitCode;
+    let i = 1;
+    while (this.impIds.has(impId)) {
+      i++;
+      impId = `${adUnitCode}-${i}`;
+    }
+    this.impIds.add(impId);
+    return impId;
   },
 
   buildVideoRequest(bidRequest) {
