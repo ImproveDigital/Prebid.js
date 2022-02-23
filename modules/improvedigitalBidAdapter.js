@@ -126,7 +126,9 @@ export const spec = {
       // Timeout
       deepSetValue(request, 'tmax', bidderRequest.timeout);
       // US Privacy
-      deepSetValue(request, 'regs.ext.us_privacy', bidderRequest.uspConsent);
+      if (typeof bidderRequest.uspConsent !== typeof undefined) {
+        deepSetValue(request, 'regs.ext.us_privacy', bidderRequest.uspConsent);
+      }
       // Site
       const url = config.getConfig('pageUrl') || deepAccess(bidderRequest, 'refererInfo.referer');
       const urlObj = parseUrl(url);
@@ -181,7 +183,7 @@ export const spec = {
           requestId: bidObject.impid,
           cpm: bidObject.price,
           creativeId: bidObject.crid,
-          currency: serverResponse.body.cur || 'USD',
+          currency: serverResponse.body.cur.toUpperCase() || 'USD',
           ttl: CREATIVE_TTL,
         }
 
@@ -193,7 +195,9 @@ export const spec = {
           bid.netRevenue = idExt.is_net || false;
         }
 
-        deepSetValue(bid, 'meta.advertiserDomains', bidObject.adomain);
+        if (bidObject.adomain) {
+          deepSetValue(bid, 'meta.advertiserDomains', bidObject.adomain);
+        }
 
         ID_RAZR.addBidData({
           bidRequest,
@@ -318,7 +322,7 @@ const ID_REQUEST = {
       deepSetValue(imp, 'ext.bidder.placementKey', getBidIdParameter('placementKey', bidRequest.params));
     }
 
-    deepSetValue(imp, 'ext.bidder.keyValues', getBidIdParameter('keyValues', bidRequest.params));
+    deepSetValue(imp, 'ext.bidder.keyValues', getBidIdParameter('keyValues', bidRequest.params) || undefined);
 
     // Adding GPID
     const gpid = deepAccess(bidRequest, 'ortb2Imp.ext.gpid') ||
@@ -365,6 +369,16 @@ const ID_REQUEST = {
     // Mimes is required
     if (!video.mimes) {
       video.mimes = VIDEO_PARAMS.DEFAULT_MIMES;
+    }
+
+    // skip must be 0 or 1
+    if (video.skip !== 1) {
+      delete video.skipmin;
+      delete video.skipafter;
+      if (video.skip !== 0) {
+        logWarn(`video.skip: invalid value '${video.skip}'. Expected 0 or 1`);
+        delete video.skip;
+      }
     }
 
     Object.keys(video).forEach(prop => {
@@ -533,13 +547,13 @@ const ID_RESPONSE = {
       bid.dealId = lineItemId;
     } else if (Array.isArray(lineItemId) &&
       Array.isArray(idExt.buying_type) &&
-      idExt.line_item_id.length === idExt.buying_type.length) {
+      lineItemId.length === idExt.buying_type.length) {
       let isDeal = false;
       idExt.buying_type.forEach((bt, i) => {
         if (isDeal) return;
         if (bt && bt !== 'rtb') {
           isDeal = true;
-          bid.dealId = idExt.lineItemId[i];
+          bid.dealId = lineItemId[i];
         }
       });
     }
