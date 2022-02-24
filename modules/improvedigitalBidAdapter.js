@@ -9,7 +9,6 @@ import {Renderer} from '../src/Renderer.js';
 import {createEidsArray} from './userId/eids.js';
 
 const BIDDER_CODE = 'improvedigital';
-const RENDERER_URL = 'https://acdn.adnxs.com/video/outstream/ANOutstreamVideo.js';
 const REQUEST_URL = 'https://ad.360yield.com/pb';
 const CREATIVE_TTL = 300;
 
@@ -561,6 +560,7 @@ const ID_RESPONSE = {
 };
 
 const ID_OUTSTREAM = {
+  RENDERER_URL: 'https://acdn.adnxs.com/video/outstream/ANOutstreamVideo.js',
   renderer(bid) {
     bid.renderer.push(() => {
       window.ANOutstreamVideo.renderAd({
@@ -579,7 +579,7 @@ const ID_OUTSTREAM = {
   createRenderer(bidRequest) {
     const renderer = Renderer.install({
       id: bidRequest.adUnitCode,
-      url: RENDERER_URL,
+      url: this.RENDERER_URL,
       loaded: false,
       config: deepAccess(bidRequest, 'renderer.options'),
       adUnitCode: bidRequest.adUnitCode
