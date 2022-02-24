@@ -594,65 +594,37 @@ const ID_OUTSTREAM = {
 };
 
 const ID_RAZR = {
-  addBidData(data) {
-    const {bid, bidRequest} = data || {};
-
+  RENDERER_URL: 'https://razr.improvedigital.com/renderer.js',
+  addBidData({bid, bidRequest}) {
     if (this.isValidBid(bid)) {
-      const rendererConfig = mergeDeep(
-        {},
-        config.getConfig('improvedigital.rendererConfig'),
-        deepAccess(bidRequest, 'params.rendererConfig')
-      );
-
-      this.bids = this.bids || {};
-      this.bids[bid.requestId] = {
-        ...data,
-        adm: bid.ad,
-        config: rendererConfig
-      };
-
-      bid.ad = `<script>window.top.postMessage({razrBidId: "${bid.requestId}"}, "*");</script>`;
-      this.addListenerOnce();
+      bid.renderer = Renderer.install({
+        url: this.RENDERER_URL,
+        config: {bidRequest}
+      });
+      bid.renderer.setRender(this.render);
     }
   },
 
   isValidBid(bid) {
-    return bid && /razr:\/\//.test(bid.ad);
+    return bid && /razr:\\?\/\\?\//.test(bid.ad);
   },
 
-  render(bidId, event) {
-    const ns = window.razr = window.razr || {};
-    ns.queue = ns.queue || [];
+  render(bid) {
+    const {bidRequest} = bid.renderer.getConfig();
 
-    ns.queue.push({
-      ...this.bids[bidId],
+    const payload = {
       type: 'prebid',
-      event
-    });
+      bidRequest,
+      bid,
+      config: mergeDeep(
+        {},
+        config.getConfig('improvedigital.rendererConfig'),
+        deepAccess(bidRequest, 'params.rendererConfig')
+      )
+    };
 
-    if (!this.loaded) {
-      const s = document.createElement('script');
-      s.type = 'text/javascript';
-      s.async = true;
-      s.src = 'https://razr.improvedigital.com/renderer.js';
-
-      const x = document.getElementsByTagName('script')[0];
-      x.parentNode.insertBefore(s, x);
-
-      this.loaded = true;
-    }
-  },
-
-  addListenerOnce() {
-    if (!this.listening) {
-      window.addEventListener('message', event => {
-        const bidId = deepAccess(event, 'data.razrBidId');
-        if (bidId) {
-          this.render(bidId, event);
-        }
-      });
-
-      this.listening = true;
-    }
+    const razr = window.razr = window.razr || {};
+    razr.queue = razr.queue || [];
+    razr.queue.push(payload);
   }
 };
