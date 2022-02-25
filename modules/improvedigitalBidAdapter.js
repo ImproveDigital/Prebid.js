@@ -30,7 +30,7 @@ const NATIVE_DATA = {
     IMG: 'img',
     DATA: 'data',
   },
-  PARAMS: {
+  ASSETS: {
     title: {id: 0, name: 'title', assetType: 'title', default: {len: 140}},
     sponsoredBy: {id: 1, name: 'sponsoredBy', assetType: 'data', type: 1},
     icon: {id: 2, name: 'icon', assetType: 'img', type: 2},
@@ -236,41 +236,6 @@ export const spec = {
 
 registerBidder(spec);
 
-const ID_UTIL = {
-  toBit(val) {
-    return val ? 1 : 0;
-  },
-
-  isInstreamVideo(bid) {
-    const context = deepAccess(bid, 'mediaTypes.video.context');
-    return bid.mediaType === 'video' || context !== 'outstream';
-  },
-
-  isOutstreamVideo(bid) {
-    return deepAccess(bid, 'mediaTypes.video.context') === 'outstream';
-  },
-
-  getBidFloor(bid) {
-    if (!isFn(bid.getFloor)) {
-      return null;
-    }
-    const floor = bid.getFloor({
-      currency: 'USD',
-      mediaType: '*',
-      size: '*'
-    });
-    if (isPlainObject(floor) && !isNaN(floor.floor) && floor.currency === 'USD') {
-      return floor.floor;
-    }
-    return null;
-  },
-
-  // Convert [x, y] to { w: x, h: y}
-  sizeToRtb(size) {
-    return {w: size[0], h: size[1]};
-  }
-};
-
 const ID_REQUEST = {
   buildServerRequests(requestObject, bidRequests, bidderRequest) {
     const requests = [];
@@ -306,7 +271,7 @@ const ID_REQUEST = {
     };
 
     // Floor
-    const bidFloor = ID_UTIL.getBidFloor(bidRequest) || getBidIdParameter('bidFloor', bidRequest.params);
+    const bidFloor = this.getBidFloor(bidRequest) || getBidIdParameter('bidFloor', bidRequest.params);
     if (bidFloor) {
       const bidFloorCur = getBidIdParameter('bidFloorCur', bidRequest.params) || 'USD';
       deepSetValue(imp, 'bidfloor', bidFloor);
@@ -353,8 +318,8 @@ const ID_REQUEST = {
   },
 
   buildVideoRequest(bidRequest) {
-    const videoParams = deepClone(deepAccess(bidRequest, 'mediaTypes.video') || {});
-    const videoImproveParams = deepAccess(bidRequest, 'params.video') || {};
+    const videoParams = deepClone(bidRequest.mediaTypes.video);
+    const videoImproveParams = deepClone(deepAccess(bidRequest, 'params.video', {}));
     const video = {...videoParams, ...videoImproveParams};
 
     if (Array.isArray(video.playerSize)) {
@@ -363,7 +328,7 @@ const ID_REQUEST = {
       video.w = size[0];
       video.h = size[1];
     }
-    video.placement = ID_UTIL.isOutstreamVideo(bidRequest) ? VIDEO_PARAMS.PLACEMENT_TYPE.OUTSTREAM : VIDEO_PARAMS.PLACEMENT_TYPE.INSTREAM;
+    video.placement = this.isOutstreamVideo(bidRequest) ? VIDEO_PARAMS.PLACEMENT_TYPE.OUTSTREAM : VIDEO_PARAMS.PLACEMENT_TYPE.INSTREAM;
 
     // Mimes is required
     if (!video.mimes) {
@@ -387,40 +352,41 @@ const ID_REQUEST = {
   },
 
   buildBannerRequest(bidRequest) {
-    // Set of desired creative sizes
+    // Set the desired creative sizes
     // Input Format: array of pairs, i.e. [[300, 250], [250, 250]]
     // Unless improvedigital.usePrebidSizes == true, no sizes are sent to the server
-    // and the sizes defined in the server for the placement get used
+    // and the sizes defined in the server for the placement will be used
     const banner = {};
     if (config.getConfig('improvedigital.usePrebidSizes') === true && bidRequest.sizes) {
-      banner.format = bidRequest.sizes.map(ID_UTIL.sizeToRtb);
+      // Convert sizes from [x, y] to { w: x, h: y}
+      banner.format = bidRequest.sizes.map(sizePair => ({w: sizePair[0], h: sizePair[1]}));
     }
     return banner;
   },
 
   buildNativeRequest(bidRequest) {
-    const nativeRequest = bidRequest.mediaTypes.native;
+    const nativeParams = bidRequest.mediaTypes.native;
     const request = {
       assets: [],
     }
-    for (let i of Object.keys(nativeRequest)) {
-      const cur = nativeRequest[i];
-      const nativeItem = NATIVE_DATA.PARAMS[i];
-      if (nativeItem) {
+    for (let i of Object.keys(nativeParams)) {
+      const nativeAsset = NATIVE_DATA.ASSETS[i];
+      if (nativeAsset) {
+        const cur = nativeParams[i];
         const asset = {
-          id: nativeItem.id,
+          id: nativeAsset.id,
           required: ID_UTIL.toBit(cur.required),
         };
-        switch (nativeItem.assetType) {
+        switch (nativeAsset.assetType) {
           case NATIVE_DATA.ASSET_TYPES.TITLE:
-            asset.title = {len: cur.len || nativeItem.default.len};
+            asset.title = {len: cur.len || nativeAsset.default.len};
             break;
           case NATIVE_DATA.ASSET_TYPES.DATA:
-            asset.data = cleanObj({type: nativeItem.type, len: cur.len})
+            asset.data = cleanObj({type: nativeAsset.type, len: cur.len})
             break;
           case NATIVE_DATA.ASSET_TYPES.IMG:
             const img = {
-              type: nativeItem.type
+              type: nativeAsset.type
             }
             if (cur.sizes) {
               [img.w, img.h] = cur.sizes;
@@ -437,6 +403,25 @@ const ID_REQUEST = {
       }
     }
     return { ver: NATIVE_DATA.VERSION, request: JSON.stringify(request) };
+  },
+
+  isOutstreamVideo(bidRequest) {
+    return deepAccess(bidRequest, 'mediaTypes.video.context') === 'outstream';
+  },
+
+  getBidFloor(bidRequest) {
+    if (!isFn(bidRequest.getFloor)) {
+      return null;
+    }
+    const floor = bidRequest.getFloor({
+      currency: 'USD',
+      mediaType: '*',
+      size: '*'
+    });
+    if (isPlainObject(floor) && !isNaN(floor.floor) && floor.currency === 'USD') {
+      return floor.floor;
+    }
+    return null;
   },
 };
 
@@ -464,7 +449,7 @@ const ID_RESPONSE = {
   buildVideoAd(bid, bidRequest, bidResponse) {
     bid.mediaType = VIDEO;
     bid.vastXml = bidResponse.adm;
-    if (ID_UTIL.isOutstreamVideo(bidRequest)) {
+    if (ID_REQUEST.isOutstreamVideo(bidRequest)) {
       bid.adResponse = {
         content: bid.vastXml,
         height: bidResponse.h,
@@ -514,7 +499,7 @@ const ID_RESPONSE = {
     }
     deepSetValue(nativeAd, 'privacyLink', native.privacy);
     const NATIVE_PARAMS_RESPONSE = {};
-    Object.values(NATIVE_DATA.PARAMS).map(param => {
+    Object.values(NATIVE_DATA.ASSETS).map(param => {
       NATIVE_PARAMS_RESPONSE[param.id] = param;
     });
     native.assets.map(asset => {
@@ -561,7 +546,22 @@ const ID_RESPONSE = {
 
 const ID_OUTSTREAM = {
   RENDERER_URL: 'https://acdn.adnxs.com/video/outstream/ANOutstreamVideo.js',
-  renderer(bid) {
+  createRenderer(bidRequest) {
+    const renderer = Renderer.install({
+      id: bidRequest.adUnitCode,
+      url: this.RENDERER_URL,
+      config: deepAccess(bidRequest, 'renderer.options'),
+      adUnitCode: bidRequest.adUnitCode
+    });
+    try {
+      renderer.setRender(this.render);
+    } catch (err) {
+      logWarn('Prebid Error calling setRender on renderer', err);
+    }
+    return renderer;
+  },
+
+  render(bid) {
     bid.renderer.push(() => {
       window.ANOutstreamVideo.renderAd({
         sizes: [bid.width, bid.height],
@@ -574,22 +574,6 @@ const ID_OUTSTREAM = {
 
   handleRendererEvents(bid, id, eventName) {
     bid.renderer.handleVideoEvent({ id, eventName });
-  },
-
-  createRenderer(bidRequest) {
-    const renderer = Renderer.install({
-      id: bidRequest.adUnitCode,
-      url: this.RENDERER_URL,
-      loaded: false,
-      config: deepAccess(bidRequest, 'renderer.options'),
-      adUnitCode: bidRequest.adUnitCode
-    });
-    try {
-      renderer.setRender(this.renderer);
-    } catch (err) {
-      logWarn('Prebid Error calling setRender on renderer', err);
-    }
-    return renderer;
   },
 };
 
@@ -627,4 +611,10 @@ const ID_RAZR = {
     razr.queue = razr.queue || [];
     razr.queue.push(payload);
   }
+};
+
+const ID_UTIL = {
+  toBit(val) {
+    return val ? 1 : 0;
+  },
 };
