@@ -917,6 +917,9 @@ describe('Improve Digital Adapter Tests', function () {
         dealId: 320896,
         netRevenue: false,
         mediaType: BANNER,
+        meta: {
+          advertiserDomains: []
+        }
       }
     ];
 
@@ -934,6 +937,9 @@ describe('Improve Digital Adapter Tests', function () {
         dealId: 320896,
         netRevenue: false,
         mediaType: BANNER,
+        meta: {
+          advertiserDomains: []
+        }
       }
     ];
 
@@ -1004,9 +1010,7 @@ describe('Improve Digital Adapter Tests', function () {
 
     const expectedBidOutstreamVideo = utils.deepClone(expectedBidInstreamVideo);
     expectedBidOutstreamVideo[0].adResponse = {
-      content: expectedBidOutstreamVideo[0].vastXml,
-      height: 480,
-      width: 640
+      content: expectedBidOutstreamVideo[0].vastXml
     };
 
     it('should return a well-formed display bid', function () {
@@ -1052,21 +1056,6 @@ describe('Improve Digital Adapter Tests', function () {
       response.body.seatbid[0].bid[0].ext.improvedigital.buying_type = 'deal_id';
       bids = spec.interpretResponse(response, {bidderRequest});
       expect(bids[0].dealId).to.equal(268515);
-
-      response.body.seatbid[0].bid[0].ext.improvedigital.line_item_id = [ 268515, 12456, 34567 ];
-      response.body.seatbid[0].bid[0].ext.improvedigital.buying_type = 'deal_id';
-      bids = spec.interpretResponse(response, {bidderRequest});
-      expect(bids[0].dealId).to.not.exist;
-
-      response.body.seatbid[0].bid[0].ext.improvedigital.line_item_id = [ 268515, 12456, 34567 ];
-      response.body.seatbid[0].bid[0].ext.improvedigital.buying_type = [ 'deal_id', 'classic' ];
-      bids = spec.interpretResponse(response, {bidderRequest});
-      expect(bids[0].dealId).to.not.exist;
-
-      response.body.seatbid[0].bid[0].ext.improvedigital.line_item_id = [ 268515, 12456, 34567 ];
-      response.body.seatbid[0].bid[0].ext.improvedigital.buying_type = [ 'rtb', 'deal_id', 'deal_id' ];
-      bids = spec.interpretResponse(response, {bidderRequest});
-      expect(bids[0].dealId).to.equal(12456);
     });
 
     it('should set currency', function () {

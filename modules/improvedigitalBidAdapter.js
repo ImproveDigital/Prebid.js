@@ -1,6 +1,6 @@
 import {
   cleanObj, deepAccess, deepClone, deepSetValue, getBidIdParameter, getBidRequest, getDNT,
-  getUniqueIdentifierStr, isFn, isNumber, isPlainObject, logWarn, mergeDeep, parseUrl
+  getUniqueIdentifierStr, isFn, isPlainObject, logWarn, mergeDeep, parseUrl
 } from '../src/utils.js';
 import {registerBidder} from '../src/adapters/bidderFactory.js';
 import {config} from '../src/config.js';
@@ -46,6 +46,9 @@ const NATIVE_DATA = {
     body2: {id: 12, name: 'body2', assetType: 'data', type: 10},
     displayUrl: {id: 13, name: 'displayUrl', assetType: 'data', type: 11},
     cta: {id: 14, name: 'cta', assetType: 'data', type: 12},
+  },
+  getAssetById(id) {
+    return Object.values(this.ASSETS).find(asset => id === asset.id);
   }
 };
 
@@ -171,32 +174,31 @@ export const spec = {
     }
 
     const bids = [];
+
     serverResponse.body.seatbid.forEach(seatbid => {
       if (!Array.isArray(seatbid.bid)) return;
+
       seatbid.bid.forEach(bidObject => {
         if (!bidObject.adm || !bidObject.price || bidObject.hasOwnProperty('errorCode')) {
           return;
         }
         const bidRequest = getBidRequest(bidObject.impid, [bidderRequest]);
+        const idExt = deepAccess(bidObject, `ext.${BIDDER_CODE}`);
+
         const bid = {
           requestId: bidObject.impid,
           cpm: bidObject.price,
           creativeId: bidObject.crid,
           currency: serverResponse.body.cur.toUpperCase() || 'USD',
-          ttl: CREATIVE_TTL,
+          dealId: (typeof idExt.buying_type === 'string' && idExt.buying_type !== 'rtb') ? idExt.line_item_id : undefined,
+          meta: {
+            advertiserDomains: bidObject.adomain ? bidObject.adomain : []
+          },
+          netRevenue: idExt.is_net || false,
+          ttl: CREATIVE_TTL
         }
 
         ID_RESPONSE.buildAd(bid, bidRequest, bidObject);
-
-        const idExt = deepAccess(bidObject, `ext.${BIDDER_CODE}`);
-        if (idExt) {
-          ID_RESPONSE.fillDealId(bid, idExt);
-          bid.netRevenue = idExt.is_net || false;
-        }
-
-        if (bidObject.adomain) {
-          deepSetValue(bid, 'meta.advertiserDomains', bidObject.adomain);
-        }
 
         ID_RAZR.addBidData({
           bidRequest,
@@ -370,31 +372,28 @@ const ID_REQUEST = {
       assets: [],
     }
     for (let i of Object.keys(nativeParams)) {
-      const nativeAsset = NATIVE_DATA.ASSETS[i];
-      if (nativeAsset) {
-        const cur = nativeParams[i];
+      const assetOrtbParams = NATIVE_DATA.ASSETS[i];
+      if (assetOrtbParams) {
+        const assetParams = nativeParams[i];
         const asset = {
-          id: nativeAsset.id,
-          required: ID_UTIL.toBit(cur.required),
+          id: assetOrtbParams.id,
+          required: ID_UTIL.toBit(assetParams.required),
         };
-        switch (nativeAsset.assetType) {
+        switch (assetOrtbParams.assetType) {
           case NATIVE_DATA.ASSET_TYPES.TITLE:
-            asset.title = {len: cur.len || nativeAsset.default.len};
+            asset.title = {len: assetParams.len || assetOrtbParams.default.len};
             break;
           case NATIVE_DATA.ASSET_TYPES.DATA:
-            asset.data = cleanObj({type: nativeAsset.type, len: cur.len})
+            asset.data = cleanObj({type: assetOrtbParams.type, len: assetParams.len})
             break;
           case NATIVE_DATA.ASSET_TYPES.IMG:
-            const img = {
-              type: nativeAsset.type
-            }
-            if (cur.sizes) {
-              [img.w, img.h] = cur.sizes;
-            } else if (cur.aspect_ratios) {
-              img.wmin = cur.aspect_ratios[0].min_width;
-              img.hmin = cur.aspect_ratios[0].min_height;
-            }
-            asset.img = cleanObj(img);
+            asset.img = cleanObj({
+              type: assetOrtbParams.type,
+              w: deepAccess(assetParams, 'sizes.0'),
+              h: deepAccess(assetParams, 'sizes.1'),
+              wmin: deepAccess(assetParams, 'aspect_ratios.0.min_width'),
+              hmin: deepAccess(assetParams, 'aspect_ratios.0.min_height')
+            });
             break;
           default:
             return;
@@ -450,37 +449,30 @@ const ID_RESPONSE = {
     bid.mediaType = VIDEO;
     bid.vastXml = bidResponse.adm;
     if (ID_REQUEST.isOutstreamVideo(bidRequest)) {
-      bid.adResponse = {
-        content: bid.vastXml,
-        height: bidResponse.h,
-        width: bidResponse.w,
-      }
+      bid.adResponse = { content: bid.vastXml };
       bid.renderer = ID_OUTSTREAM.createRenderer(bidRequest);
     }
   },
 
   buildBannerAd(bid, bidRequest, bidResponse) {
     bid.mediaType = BANNER;
-    if (bidResponse.nurl) {
-      bid.nurl = bidResponse.nurl;
-    }
-    if (bidResponse.adm) {
-      bid.ad = bidResponse.adm;
-      bid.width = bidResponse.w;
-      bid.height = bidResponse.h;
-    }
+    bid.ad = bidResponse.adm;
+    bid.width = bidResponse.w;
+    bid.height = bidResponse.h;
   },
 
   buildNativeAd(bid, bidRequest, bidResponse) {
     bid.mediaType = NATIVE;
-    const native = JSON.parse(bidResponse.adm)
+    const nativeResponse = JSON.parse(bidResponse.adm);
     const nativeAd = {
-      clickUrl: native.link.url,
+      clickUrl: deepAccess(nativeResponse, 'link.url'),
+      clickTrackers: deepAccess(nativeResponse, 'link.clicktrackers'),
+      privacyLink: nativeResponse.privacy
     }
     // Trackers
-    if (native.eventtrackers) {
+    if (nativeResponse.eventtrackers) {
       nativeAd.impressionTrackers = [];
-      native.eventtrackers.forEach(tracker => {
+      nativeResponse.eventtrackers.forEach(tracker => {
         // Only handle impression event. Viewability events are not supported yet.
         if (tracker.event !== 1) return;
         switch (tracker.method) {
@@ -494,25 +486,20 @@ const ID_RESPONSE = {
         }
       });
     } else {
-      nativeAd.impressionTrackers = native.imptrackers || [];
-      nativeAd.javascriptTrackers = native.jstracker;
+      nativeAd.impressionTrackers = nativeResponse.imptrackers || [];
+      nativeAd.javascriptTrackers = nativeResponse.jstracker;
     }
-    deepSetValue(nativeAd, 'privacyLink', native.privacy);
-    const NATIVE_PARAMS_RESPONSE = {};
-    Object.values(NATIVE_DATA.ASSETS).map(param => {
-      NATIVE_PARAMS_RESPONSE[param.id] = param;
-    });
-    native.assets.map(asset => {
-      const item = NATIVE_PARAMS_RESPONSE[asset.id];
-      switch (item.assetType) {
+    nativeResponse.assets.map(asset => {
+      const assetParams = NATIVE_DATA.getAssetById(asset.id);
+      switch (assetParams.assetType) {
         case NATIVE_DATA.ASSET_TYPES.TITLE:
           nativeAd.title = asset.title.text;
           break;
         case NATIVE_DATA.ASSET_TYPES.DATA:
-          nativeAd[item.name] = asset.data.value;
+          nativeAd[assetParams.name] = asset.data.value;
           break;
         case NATIVE_DATA.ASSET_TYPES.IMG:
-          nativeAd[item.name] = {
+          nativeAd[assetParams.name] = {
             url: asset.img.url,
             width: asset.img.w,
             height: asset.img.h,
@@ -522,26 +509,6 @@ const ID_RESPONSE = {
     });
     bid.native = nativeAd;
   },
-
-  fillDealId(bid, idExt) {
-    // Deal ID_RESPONSE. Composite ads can have multiple line items and the ID_RESPONSE of the first
-    // dealID line item will be used.
-    const lineItemId = idExt.line_item_id;
-    if (isNumber(lineItemId) && idExt.buying_type && idExt.buying_type !== 'rtb') {
-      bid.dealId = lineItemId;
-    } else if (Array.isArray(lineItemId) &&
-      Array.isArray(idExt.buying_type) &&
-      lineItemId.length === idExt.buying_type.length) {
-      let isDeal = false;
-      idExt.buying_type.forEach((bt, i) => {
-        if (isDeal) return;
-        if (bt && bt !== 'rtb') {
-          isDeal = true;
-          bid.dealId = lineItemId[i];
-        }
-      });
-    }
-  }
 };
 
 const ID_OUTSTREAM = {
@@ -590,7 +557,7 @@ const ID_RAZR = {
   },
 
   isValidBid(bid) {
-    return bid && /razr:\\?\/\\?\//.test(bid.ad);
+    return bid && /razr:\/\//.test(bid.ad);
   },
 
   render(bid) {
