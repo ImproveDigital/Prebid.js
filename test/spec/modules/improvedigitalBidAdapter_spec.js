@@ -665,149 +665,38 @@ describe('Improve Digital Adapter Tests', function () {
     }
   };
 
-  // const serverResponseNative = {
-  //   body: {
-  //     id: '687a06c541d8d1',
-  //     site_id: 191642,
-  //     bid: [
-  //       {
-  //         isNet: false,
-  //         id: '33e9500b21129f',
-  //         advid: '5279',
-  //         price: 1.45888594164456,
-  //         nurl: 'https://ice.360yield.com/imp_pixel?ic=wVm',
-  //         h: 290,
-  //         pid: 1053688,
-  //         sync: [
-  //           'https://link1',
-  //           'https://link2'
-  //         ],
-  //         crid: '422031',
-  //         w: 600,
-  //         cid: '99006',
-  //         native: {
-  //           assets: [
-  //             {
-  //               title: {
-  //                 text: 'Native title'
-  //               }
-  //             },
-  //             {
-  //               data: {
-  //                 type: 1,
-  //                 value: 'Improve Digital'
-  //               }
-  //             },
-  //             {
-  //               data: {
-  //                 type: 2,
-  //                 value: 'Native body'
-  //               }
-  //             },
-  //             {
-  //               data: {
-  //                 type: 3,
-  //                 value: '4' // rating
-  //               }
-  //             },
-  //             {
-  //               data: {
-  //                 type: 4,
-  //                 value: '10105' // likes
-  //               }
-  //             },
-  //             {
-  //               data: {
-  //                 type: 5,
-  //                 value: '150000' // downloads
-  //               }
-  //             },
-  //             {
-  //               data: {
-  //                 type: 6,
-  //                 value: '3.99' // price
-  //               }
-  //             },
-  //             {
-  //               data: {
-  //                 type: 7,
-  //                 value: '4.49' // salePrice
-  //               }
-  //             },
-  //             {
-  //               data: {
-  //                 type: 8,
-  //                 value: '(123) 456-7890' // phone
-  //               }
-  //             },
-  //             {
-  //               data: {
-  //                 type: 9,
-  //                 value: '123 Main Street, Anywhere USA' // address
-  //               }
-  //             },
-  //             {
-  //               data: {
-  //                 type: 10,
-  //                 value: 'body2'
-  //               }
-  //             },
-  //             {
-  //               data: {
-  //                 type: 11,
-  //                 value: 'https://myurl.com' // displayUrl
-  //               }
-  //             },
-  //             {
-  //               data: {
-  //                 type: 12,
-  //                 value: 'Do it' // cta
-  //               }
-  //             },
-  //             {
-  //               img: {
-  //                 type: 1,
-  //                 url: 'Should get ignored',
-  //                 h: 300,
-  //                 w: 400
-  //               }
-  //             },
-  //             {
-  //               img: {
-  //                 type: 2,
-  //                 url: 'https://blah.com/icon.jpg',
-  //                 h: 30,
-  //                 w: 40
-  //               }
-  //
-  //             },
-  //             {
-  //               img: {
-  //                 type: 3,
-  //                 url: 'https://blah.com/image.jpg',
-  //                 h: 200,
-  //                 w: 800
-  //               }
-  //             }
-  //           ],
-  //           link: {
-  //             url: 'https://advertiser.com',
-  //             clicktrackers: [
-  //               'https://click.tracker.com/click?impid=123'
-  //             ]
-  //           },
-  //           imptrackers: [
-  //             'https://imptrack1.com',
-  //             'https://imptrack2.com'
-  //           ],
-  //           jstracker: '<script src=\"https://www.foobar.js\"></script>',
-  //           privacy: 'https://www.myprivacyurl.com'
-  //         }
-  //       }
-  //     ],
-  //     debug: ''
-  //   }
-  // };
+  const serverResponseNative = {
+    body: {
+      'id': '8201e669-bbbf-4f61-b9a2-4cb854033c82',
+      'cur': 'EUR',
+      'seatbid': [
+        {
+          'bid': [
+            {
+              'ext': {
+                'improvedigital': {
+                  'line_item_id': 411331,
+                  'bidder_id': 0,
+                  'brand_name': '',
+                  'buying_type': 'classic',
+                  'agency_id': '0',
+                  'is_net': true
+                }
+              },
+              'crid': '544456',
+              'exp': 120,
+              'id': '52098fad-20c1-476b-a4fa-41e275e5a4a5',
+              'price': 1.8600000000000003,
+              'adm': "{\"ver\":\"1.1\",\"imptrackers\":[\"https://secure.adnxs.com/imptr?id=52311&t=2\",\"https://euw-ice.360yield.com/imp_pixel?ic=hcUBlCANx1FabHBf6FR2gC7UO4xEyXahdZAn0-B5qL-bb3A74BJ1smyWIyW7IWcC0SOjSXzVpevTHXxTqJ.sf.Qhahyy6tSo.0j1QWfXlH8sM4-8vKWjMjw-x.IrJJNlwkQ0s1CdwcwTefcLXm5l2E-W19VhACuV7f3mgrZMNjiSw.SjJAfyPC3SIyAMRjYfj53UmjriQ46T7lhmkqxK8wHmksYCdbZc3PZESk8NWl28sxdjNvnYYCFMcJbeav.LOLabyTXfwy-1cEPbQs.IKMRZIKaqccTDPV3wOtzbNv0jQzatd3Nnv-PGFQcjQ-GW3i27W04Fws4kodpFSn-B6VwZAjzLzoyd5gBncyRnAyCplEbgHU5sZ1IyKHWjgCl3ZtRIK5vqrRD5D-xqgSnOi7-phG.CqZWDZ4bMDSfQg2ZnbvUTyGKcEl0WR59dW5izTMV4Fjizcrvr5T-t.zMbGwz.hGnmLIyhTqh.IcwW.GiDLVExlDlix5S1LXIWVsSyrQ==\"],\"assets\":[{\"id\":1,\"data\":{\"value\":\"ImproveDigital\",\"type\":1}},{\"id\":3,\"data\":{\"value\":\"Test content.\",\"type\":2}},{\"id\":0,\"title\":{\"text\":\"Sample Prebid Test Title\"}}],\"link\":{\"url\":\"https://euw-ice.360yield.com/click/hcUBlHOV7YhVse8RyBa0ajjyPa9Vt17e4g-1m3cRj3E67vq-RYux.SiUeAmBfNBcoOqkUc6A15AWmi4yFu5K-BdkaYjildyyk7fNLyR6hWr411kv4vrFwm5jrIBceuHS6K8oN69f.uCo8zGTdR2TbSlldwcpahQPlufZU.6VaMsu4IC53uEiUT5vb7kAw6TTlxuGBNq6zaGryiWEV2.N3YYJDTyYPh8tv-ZFyeFZFm0Gnjv.xWbC.70JcRUVU9UelQaPsTpTWYTXBhJt84YJUw1-GNtaLNVLSjjZbVoA2fsMti5p6OBmF.7u39on2OPgvseIkSmge7Pqg63pRqdP75hp.DAEk6OkcN1jGnwP2DSbvpaSbin5lVqjfO0B-wnQgfQTCUtM5v4JmkNweLhUf9Q-x.nPKLW5SccEk9ZFXzY2-1wpT3PWm8Tix3NRscLPZub9wHzL..pl6ip8cQ9hp16UjwT4H6RMAxL0R7bl-h2pAicGAzYmuO7ntRESKUoIWA==//http%3A%2F%2Fquantum-advertising.com%2Ffr%2F\"},\"jstracker\":\"<script type=\\\"application/javascript\\\">var js_tracker = ['https://secure.adnxs.com/imptr?id=52312&t=1', 'https://pixel.adsafeprotected.com/rjss/st/291611/36974035/skeleton.js?ias_adpath=[class~=ea_improve_pid_${TAG_ID}]']</script>\"}",
+              'impid': '2d7a7db325c6f',
+              'cid': '196108'
+            }
+          ],
+          'seat': 'improvedigital'
+        }
+      ]
+    }
+  };
 
   const serverResponseVideo = {
     'body': {
@@ -845,19 +734,6 @@ describe('Improve Digital Adapter Tests', function () {
       ],
     }
   };
-
-  // const nativeEventtrackers = [
-  //   {
-  //     event: 1,
-  //     method: 1,
-  //     url: 'https://www.mytracker.com/imptracker'
-  //   },
-  //   {
-  //     event: 1,
-  //     method: 2,
-  //     url: 'https://www.mytracker.com/tracker.js'
-  //   }
-  // ];
 
   const serverResponseRazr = {
     body: {
@@ -939,54 +815,6 @@ describe('Improve Digital Adapter Tests', function () {
         mediaType: BANNER,
         meta: {
           advertiserDomains: []
-        }
-      }
-    ];
-
-    const expectedBidNative = [
-      {
-        mediaType: 'native',
-        creativeId: '422031',
-        cpm: 1.45888594164456,
-        currency: 'USD',
-        height: 290,
-        netRevenue: false,
-        requestId: '33e9500b21129f',
-        ttl: 300,
-        width: 600,
-        native: {
-          title: 'Native title',
-          body: 'Native body',
-          body2: 'body2',
-          cta: 'Do it',
-          sponsoredBy: 'Improve Digital',
-          rating: '4',
-          likes: '10105',
-          downloads: '150000',
-          price: '3.99',
-          salePrice: '4.49',
-          phone: '(123) 456-7890',
-          address: '123 Main Street, Anywhere USA',
-          displayUrl: 'https://myurl.com',
-          icon: {
-            url: 'https://blah.com/icon.jpg',
-            height: 30,
-            width: 40
-          },
-          image: {
-            url: 'https://blah.com/image.jpg',
-            height: 200,
-            width: 800
-          },
-          clickUrl: 'https://advertiser.com',
-          clickTrackers: ['https://click.tracker.com/click?impid=123'],
-          impressionTrackers: [
-            'https://ice.360yield.com/imp_pixel?ic=wVm',
-            'https://imptrack1.com',
-            'https://imptrack2.com'
-          ],
-          javascriptTrackers: '<script src=\"https://www.foobar.js\"></script>',
-          privacyLink: 'https://www.myprivacyurl.com'
         }
       }
     ];
@@ -1111,26 +939,27 @@ describe('Improve Digital Adapter Tests', function () {
       expect(bids[0].meta.advertiserDomains).to.equal(adomain);
     });
     //
-    // // Native ads
-    // it('should return a well-formed native ad bid', function () {
-    //   let bids = spec.interpretResponse(serverResponseNative, {bidderRequest});
-    //   expect(bids[0].ortbNative).to.deep.equal(serverResponseNative.body.bid[0].native);
-    //   delete bids[0].ortbNative;
-    //   expect(bids).to.deep.equal(expectedBidNative);
-    //
-    //   // eventtrackers
-    //   const response = JSON.parse(JSON.stringify(serverResponseNative));
-    //   const expectedBids = JSON.parse(JSON.stringify(expectedBidNative));
-    //   response.body.seatbid[0].bid[0].native.eventtrackers = nativeEventtrackers;
-    //   expectedBids[0].native.impressionTrackers = [
-    //     'https://ice.360yield.com/imp_pixel?ic=wVm',
-    //     'https://www.mytracker.com/imptracker'
-    //   ];
-    //   expectedBids[0].native.javascriptTrackers = '<script src=\"https://www.mytracker.com/tracker.js\"></script>';
-    //   bids = spec.interpretResponse(response, {bidderRequest});
-    //   delete bids[0].ortbNative;
-    //   expect(bids).to.deep.equal(expectedBids);
-    // });
+    // Native ads
+    it('should return a well-formed native ad bid', function () {
+      const nativeBidderRequest = JSON.parse(JSON.stringify(bidderRequest));
+      nativeBidderRequest.bids[0].bidId = '2d7a7db325c6f';
+      delete nativeBidderRequest.bids[0].mediaTypes.banner;
+      nativeBidderRequest.bids[0].mediaTypes.native = {};
+      const bids = spec.interpretResponse(serverResponseNative, {bidderRequest: nativeBidderRequest});
+      // Verify Native Response
+      expect(bids[0].native).to.exist;
+      const nativeBid = bids[0].native;
+      const nativeResp = JSON.parse(serverResponseNative.body.seatbid[0].bid[0].adm);
+      // Verify Native Response
+      expect(nativeBid.clickUrl).to.exist.and.equal(nativeResp.link.url);
+      expect(nativeBid.impressionTrackers).to.exist.and.deep.equal(nativeResp.imptrackers);
+      expect(nativeBid.javascriptTrackers).to.exist.and.deep.equal(nativeResp.jstracker);
+
+      // Verify Assets
+      expect(nativeBid.title).to.exist.and.equal('Sample Prebid Test Title');
+      expect(nativeBid.sponsoredBy).to.exist.and.equal('ImproveDigital');
+      expect(nativeBid.body).to.exist.and.equal('Test content.');
+    });
 
     // Video
     it('should return a well-formed instream video bid', function () {
@@ -1154,6 +983,8 @@ describe('Improve Digital Adapter Tests', function () {
 
     it('should not affect non-RAZR bids', function () {
       const bids = spec.interpretResponse(serverResponse, {bidderRequest});
+      // eslint-disable-next-line no-console
+      console.log(JSON.stringify(bids));
       expect(bids[0].renderer).to.not.exist;
     });
 
