@@ -983,8 +983,6 @@ describe('Improve Digital Adapter Tests', function () {
 
     it('should not affect non-RAZR bids', function () {
       const bids = spec.interpretResponse(serverResponse, {bidderRequest});
-      // eslint-disable-next-line no-console
-      console.log(JSON.stringify(bids));
       expect(bids[0].renderer).to.not.exist;
     });
 
