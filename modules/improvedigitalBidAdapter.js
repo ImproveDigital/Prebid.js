@@ -535,7 +535,7 @@ const ID_OUTSTREAM = {
         targetId: bid.adUnitCode,
         adResponse: bid.adResponse,
         rendererOptions: bid.renderer.getConfig()
-      }, this.handleRendererEvents.bind(null, bid));
+      }, ID_OUTSTREAM.handleRendererEvents.bind(null, bid));
     });
   },
 
