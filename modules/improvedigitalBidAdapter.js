@@ -9,8 +9,15 @@ import {Renderer} from '../src/Renderer.js';
 import {createEidsArray} from './userId/eids.js';
 
 const BIDDER_CODE = 'improvedigital';
-const REQUEST_URL = 'https://ad.360yield.com/pb';
 const CREATIVE_TTL = 300;
+
+const REQUEST = {
+  PB_URL: 'https://ad.360yield.com/pb',
+  PBS_URL: 'https://pbs.360yield.com/openrtb2/auction',
+  getUrl(pbsMode = false) {
+    return pbsMode ? this.PBS_URL : this.PB_URL;
+  },
+};
 
 const VIDEO_PARAMS = {
   DEFAULT_MIMES: ['video/mp4'],
@@ -241,32 +248,35 @@ registerBidder(spec);
 const ID_REQUEST = {
   buildServerRequests(requestObject, bidRequests, bidderRequest) {
     const requests = [];
+    let pbsMode = config.getConfig('improvedigital.pbs') === true;
     if (config.getConfig('improvedigital.singleRequest') === true) {
-      requestObject.imp = bidRequests.map((bidRequest) => this.buildImp(bidRequest));
-      requests[0] = this.formatRequest(requestObject, bidderRequest);
+      requestObject.imp = bidRequests.map((bidRequest) => this.buildImp(bidRequest, pbsMode));
+      requests[0] = this.formatRequest(requestObject, bidderRequest, pbsMode);
     } else {
       bidRequests.map((bidRequest) => {
         const request = deepClone(requestObject);
+        pbsMode = pbsMode || getBidIdParameter('pbs', bidRequest.params) === true;
         request.id = bidRequest.bidId || getUniqueIdentifierStr();
-        request.imp = [this.buildImp(bidRequest)];
+        request.imp = [this.buildImp(bidRequest, pbsMode)];
         deepSetValue(request, 'source.tid', bidRequest.transactionId);
-        requests.push(this.formatRequest(request, bidderRequest));
+        requests.push(this.formatRequest(request, bidderRequest, pbsMode));
       });
     }
 
     return requests;
   },
 
-  formatRequest(request, bidderRequest) {
+  formatRequest(request, bidderRequest, pbsMode) {
     return {
       method: 'POST',
-      url: REQUEST_URL,
+      url: REQUEST.getUrl(pbsMode),
       data: JSON.stringify(request),
       bidderRequest
     }
   },
 
-  buildImp(bidRequest) {
+  buildImp(bidRequest, pbsMode = false) {
+    const bidderCode = pbsMode ? BIDDER_CODE : 'bidder';
     const imp = {
       id: getBidIdParameter('bidId', bidRequest) || getUniqueIdentifierStr(),
       secure: ID_UTIL.toBit(window.location.protocol === 'https:'),
@@ -282,13 +292,17 @@ const ID_REQUEST = {
 
     const placementId = getBidIdParameter('placementId', bidRequest.params);
     if (placementId) {
-      deepSetValue(imp, 'ext.bidder.placementId', placementId);
+      deepSetValue(imp, `ext.${bidderCode}.placementId`, placementId);
+      // When PBS Mode Enabled
+      if (pbsMode) {
+        deepSetValue(imp, 'ext.prebid.storedrequest.id', placementId);
+      }
     } else {
-      deepSetValue(imp, 'ext.bidder.publisherId', getBidIdParameter('publisherId', bidRequest.params));
-      deepSetValue(imp, 'ext.bidder.placementKey', getBidIdParameter('placementKey', bidRequest.params));
+      deepSetValue(imp, `ext.${bidderCode}.publisherId`, getBidIdParameter('publisherId', bidRequest.params));
+      deepSetValue(imp, `ext.${bidderCode}.placementKey`, getBidIdParameter('placementKey', bidRequest.params));
     }
 
-    deepSetValue(imp, 'ext.bidder.keyValues', getBidIdParameter('keyValues', bidRequest.params) || undefined);
+    deepSetValue(imp, `ext.${bidderCode}.keyValues`, getBidIdParameter('keyValues', bidRequest.params) || undefined);
 
     // Adding GPID
     const gpid = deepAccess(bidRequest, 'ortb2Imp.ext.gpid') ||
