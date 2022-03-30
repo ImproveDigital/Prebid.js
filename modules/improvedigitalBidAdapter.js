@@ -422,9 +422,8 @@ const ID_REQUEST = {
       const site = {};
       const url = config.getConfig('pageUrl') || deepAccess(bidderRequest, 'refererInfo.referer');
       if (url) {
-        site['page'] = url;
-        const urlObj = parseUrl(url);
-        site['domain'] = urlObj.hostname;
+        site.page = url;
+        site.domain = parseUrl(url).hostname;
       }
       const configSiteSettings = config.getConfig('site') || {};
       const fpdSiteSettings = config.getConfig('ortb2.site') || {};

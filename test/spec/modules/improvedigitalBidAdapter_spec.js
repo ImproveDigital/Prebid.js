@@ -589,7 +589,7 @@ describe('Improve Digital Adapter Tests', function () {
       getConfigStub.restore();
     });
 
-    it('validate site object', function () {
+    it('should set correct site params', function () {
       let getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('site').returns({
         content: 'XYZ',
@@ -616,6 +616,24 @@ describe('Improve Digital Adapter Tests', function () {
       request = spec.buildRequests([simpleBidRequest], bidderRequestReferrer)[0];
       payload = JSON.parse(request.data);
       expect(payload.site.content).does.exist.and.equal('ZZZ');
+      expect(payload.site.page).does.exist.and.equal('https://blah.com/test.html');
+      expect(payload.site.domain).does.exist.and.equal('blah.com');
+      getConfigStub.restore();
+    });
+
+    it('should set pageUrl as site param', function () {
+      let getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub.withArgs('pageUrl').returns('https://improvidigital.com/test-page');
+      let request = spec.buildRequests([simpleBidRequest], bidderRequestReferrer)[0];
+      let payload = JSON.parse(request.data);
+      expect(payload.site.page).does.exist.and.equal('https://improvidigital.com/test-page');
+      expect(payload.site.domain).does.exist.and.equal('improvidigital.com');
+      getConfigStub.restore();
+
+      getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub.withArgs('pageUrl').returns(undefined);
+      request = spec.buildRequests([simpleBidRequest], bidderRequestReferrer)[0];
+      payload = JSON.parse(request.data);
       expect(payload.site.page).does.exist.and.equal('https://blah.com/test.html');
       expect(payload.site.domain).does.exist.and.equal('blah.com');
       getConfigStub.restore();
