@@ -7,6 +7,7 @@ import {BANNER, VIDEO} from '../../../src/mediaTypes';
 describe('Improve Digital Adapter Tests', function () {
   const METHOD = 'POST';
   const URL = 'https://ad.360yield.com/pb';
+  const PBS_URL = 'https://pbs.360yield.com/openrtb2/auction';
   const INSTREAM_TYPE = 1;
   const OUTSTREAM_TYPE = 3;
 
@@ -237,20 +238,6 @@ describe('Improve Digital Adapter Tests', function () {
       const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequest)[0].data);
       expect(payload.imp[0].ext.bidder.keyValues).to.deep.equal(keyValues);
     });
-
-    // it('should add single size filter', function () {
-    //   const bidRequest = Object.assign({}, simpleBidRequest);
-    //   const size = {
-    //     w: 800,
-    //     h: 600
-    //   };
-    //   bidRequest.params.size = size;
-    //   const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequest).data);
-    //   expect(payload.imp[0].banner).to.deep.equal(size);
-    //   // When single size filter is set, format shouldn't be populated. This
-    //   // is to maintain backward compatibily
-    //   expect(payload.imp[0].banner.format).to.not.exist;
-    // });
 
     it('should add currency', function () {
       const bidRequest = Object.assign({}, simpleBidRequest);
@@ -644,6 +631,60 @@ describe('Improve Digital Adapter Tests', function () {
       let payload = JSON.parse(request.data);
       expect(payload.site).does.exist;
       expect(payload.app).does.not.exist;
+      getConfigStub.restore();
+    });
+
+    it('should set PBS_URL when pbs mode enabled from configure', function () {
+      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub.withArgs('improvedigital.pbs').returns(true);
+      const request = spec.buildRequests([simpleBidRequest], bidderRequest)[0];
+      expect(request.method).to.equal(METHOD);
+      expect(request.url).to.equal(PBS_URL);
+      expect(request.bidderRequest).to.deep.equal(bidderRequest);
+      const payload = JSON.parse(request.data);
+      expect(payload).to.be.an('object');
+      expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal(1053688);
+      getConfigStub.restore();
+    });
+
+    it('should set PBS_URL when pbs mode enabled from params', function () {
+      const bidRequest = JSON.parse(JSON.stringify(simpleBidRequest));
+      bidRequest.params.pbs = true;
+      const request = spec.buildRequests([bidRequest], bidderRequest)[0];
+      expect(request.method).to.equal(METHOD);
+      expect(request.url).to.equal(PBS_URL);
+      expect(request.bidderRequest).to.deep.equal(bidderRequest);
+      const payload = JSON.parse(request.data);
+      expect(payload).to.be.an('object');
+      expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal(1053688);
+    });
+
+    it('should not set PBS_URL when pbs mode disabled from params', function () {
+      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub.withArgs('improvedigital.pbs').returns(true);
+      const bidRequest = JSON.parse(JSON.stringify(simpleBidRequest));
+      bidRequest.params.pbs = false;
+      const request = spec.buildRequests([bidRequest], bidderRequest)[0];
+      expect(request.method).to.equal(METHOD);
+      expect(request.url).to.equal(URL);
+      expect(request.bidderRequest).to.deep.equal(bidderRequest);
+      const payload = JSON.parse(request.data);
+      expect(payload).to.be.an('object');
+      getConfigStub.restore();
+    });
+
+    it('should set PBS_URL when pbs mode enabled from params and disabled from config', function () {
+      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub.withArgs('improvedigital.pbs').returns(false);
+      const bidRequest = JSON.parse(JSON.stringify(simpleBidRequest));
+      bidRequest.params.pbs = true;
+      const request = spec.buildRequests([bidRequest], bidderRequest)[0];
+      expect(request.method).to.equal(METHOD);
+      expect(request.url).to.equal(PBS_URL);
+      expect(request.bidderRequest).to.deep.equal(bidderRequest);
+      const payload = JSON.parse(request.data);
+      expect(payload).to.be.an('object');
+      expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal(1053688);
       getConfigStub.restore();
     });
   });
