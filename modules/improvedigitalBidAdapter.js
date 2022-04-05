@@ -95,7 +95,8 @@ export const spec = {
             version: '$prebid.version$',
           }
         }
-      }
+      },
+      test: 1
     };
 
     // Device
@@ -154,7 +155,7 @@ export const spec = {
       deepSetValue(request, 'user.ext.eids', eids.length ? eids : undefined);
     }
 
-    REQUEST.BIDDER_REQUEST = bidderRequest;
+    REQUEST.BIDDER_REQUEST.push(bidderRequest);
 
     return ID_REQUEST.buildServerRequests(request, bidRequests, bidderRequest);
   },
@@ -188,11 +189,11 @@ export const spec = {
           cpm: bidObject.price,
           creativeId: bidObject.crid,
           currency: serverResponse.body.cur.toUpperCase() || 'USD',
-          dealId: (typeof idExt.buying_type === 'string' && idExt.buying_type !== 'rtb') ? idExt.line_item_id : undefined,
+          dealId: (idExt && typeof idExt.buying_type === 'string' && idExt.buying_type !== 'rtb') ? idExt.line_item_id : undefined,
           meta: {
             advertiserDomains: bidObject.adomain ? bidObject.adomain : []
           },
-          netRevenue: idExt.is_net || false,
+          netRevenue: idExt && idExt.is_net || false,
           ttl: CREATIVE_TTL
         }
 
@@ -228,20 +229,26 @@ export const spec = {
           }
         });
         // FOR PBS MODE
-        const seatBids = deepAccess(response, 'body.seatbid.0.bid', []); // @FIXME
-        seatBids.forEach(bid => {
-          const bidRequest = getBidRequest(bid.impid, [REQUEST.BIDDER_REQUEST]);
-          const pbsConfig = ID_REQUEST.pbsConfig(bidRequest.params);
-          if (pbsConfig.pbs) {
-            syncs.push({
-              type: 'iframe',
-              url: REQUEST.PBS_SYNC_URL
-                .replace('$$GDPR$$', ID_UTIL.toBit(gdprConsent.gdprApplies))
-                .replace('$$GDPR_CONSENT$$', gdprConsent.consentString)
-              ,
-            });
-          }
-        })
+        const seatBids = deepAccess(response, 'body.seatbid', []);
+        if (Array.isArray(seatBids)) {
+          seatBids.forEach(seatbid => {
+            seatbid.bid.forEach(bid => {
+              if (bid.adm && bid.price && !bid.hasOwnProperty('errorCode')) {
+                const bidRequest = getBidRequest(bid.impid, REQUEST.BIDDER_REQUEST);
+                const pbsConfig = ID_REQUEST.pbsConfig(bidRequest.params);
+                if (pbsConfig.pbs) {
+                  syncs.push({
+                    type: 'iframe',
+                    url: REQUEST.PBS_SYNC_URL
+                      .replace('$$GDPR$$', ID_UTIL.toBit(gdprConsent.gdprApplies))
+                      .replace('$$GDPR_CONSENT$$', gdprConsent.consentString)
+                    ,
+                  });
+                }
+              }
+            })
+          })
+        }
       });
       return syncs.map(sync => {
         if (typeof sync === 'object' && sync.type && sync.url) {
