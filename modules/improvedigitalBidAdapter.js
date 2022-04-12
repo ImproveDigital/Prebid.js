@@ -15,10 +15,9 @@ const REQUEST = {
   PB_URL: 'https://ad.360yield.com/pb',
   PBS_URL: 'https://pbs.360yield.com/openrtb2/auction',
   PBS_SYNC_URL: 'https://localhost:3001/load-cookie.html?endpoint=improvedigital&gdpr=$$GDPR$$&gdpr_consent=$$GDPR_CONSENT$$',
-  getUrl(pbs = false) {
-    return pbs ? this.PBS_URL : this.PB_URL;
+  getUrl(pbsMode = false) {
+    return pbsMode ? this.PBS_URL : this.PB_URL;
   },
-  BIDDER_REQUEST: [],
 };
 
 const VIDEO_PARAMS = {
@@ -66,6 +65,7 @@ export const spec = {
   gvlid: 253,
   aliases: ['id'],
   supportedMediaTypes: [BANNER, NATIVE, VIDEO],
+  syncStore: { pbsMode: false },
 
   /**
    * Determines whether or not the given bid request is valid.
@@ -155,8 +155,6 @@ export const spec = {
       deepSetValue(request, 'user.ext.eids', eids.length ? eids : undefined);
     }
 
-    REQUEST.BIDDER_REQUEST.push(bidderRequest);
-
     return ID_REQUEST.buildServerRequests(request, bidRequests, bidderRequest);
   },
 
@@ -182,18 +180,18 @@ export const spec = {
           return;
         }
         const bidRequest = getBidRequest(bidObject.impid, [bidderRequest]);
-        const idExt = deepAccess(bidObject, `ext.${BIDDER_CODE}`);
+        const idExt = deepAccess(bidObject, `ext.${BIDDER_CODE}`, {});
 
         const bid = {
           requestId: bidObject.impid,
           cpm: bidObject.price,
           creativeId: bidObject.crid,
           currency: serverResponse.body.cur.toUpperCase() || 'USD',
-          dealId: (idExt && typeof idExt.buying_type === 'string' && idExt.buying_type !== 'rtb') ? idExt.line_item_id : undefined,
+          dealId: (typeof idExt.buying_type === 'string' && idExt.buying_type !== 'rtb') ? idExt.line_item_id : undefined,
           meta: {
             advertiserDomains: bidObject.adomain ? bidObject.adomain : []
           },
-          netRevenue: idExt && idExt.is_net || false,
+          netRevenue: idExt.is_net || false,
           ttl: CREATIVE_TTL
         }
 
@@ -219,8 +217,19 @@ export const spec = {
    * @return {UserSync[]} The user syncs which should be dropped.
    */
   getUserSyncs(syncOptions, serverResponses, gdprConsent) {
-    if (syncOptions.pixelEnabled) {
-      const syncs = [];
+    const syncs = [];
+
+    if (this.syncStore.pbsMode && syncOptions.iframeEnabled) {
+      // FOR PBS MODE
+      syncs.push({
+        type: 'iframe',
+        url: REQUEST.PBS_SYNC_URL
+          .replace('$$GDPR$$', ID_UTIL.toBit(gdprConsent.gdprApplies))
+          .replace('$$GDPR_CONSENT$$', gdprConsent.consentString)
+        ,
+      });
+    }
+    else if (syncOptions.pixelEnabled) {
       serverResponses.forEach(response => {
         const syncArr = deepAccess(response, `body.ext.${BIDDER_CODE}.sync`, []);
         syncArr.forEach(syncElement => {
@@ -228,39 +237,18 @@ export const spec = {
             syncs.push(syncElement);
           }
         });
-        // FOR PBS MODE
-        const seatBids = deepAccess(response, 'body.seatbid', []);
-        if (Array.isArray(seatBids)) {
-          seatBids.forEach(seatbid => {
-            seatbid.bid.forEach(bid => {
-              if (bid.adm && bid.price && !bid.hasOwnProperty('errorCode')) {
-                const bidRequest = getBidRequest(bid.impid, REQUEST.BIDDER_REQUEST);
-                const pbsConfig = ID_REQUEST.pbsConfig(bidRequest.params);
-                if (pbsConfig.pbs) {
-                  syncs.push({
-                    type: 'iframe',
-                    url: REQUEST.PBS_SYNC_URL
-                      .replace('$$GDPR$$', ID_UTIL.toBit(gdprConsent.gdprApplies))
-                      .replace('$$GDPR_CONSENT$$', gdprConsent.consentString)
-                    ,
-                  });
-                }
-              }
-            })
-          })
-        }
-      });
-      return syncs.map(sync => {
-        if (typeof sync === 'object' && sync.type && sync.url) {
-          return {
-            type: sync.type,
-            url: sync.url,
-          }
-        }
-        return { type: 'image', url: sync }
       });
     }
-    return [];
+
+    return syncs.map(sync => {
+      if (typeof sync === 'object' && sync.type && sync.url) {
+        return {
+          type: sync.type,
+          url: sync.url,
+        }
+      }
+      return { type: 'image', url: sync }
+    });
   }
 };
 
@@ -270,40 +258,48 @@ const ID_REQUEST = {
   buildServerRequests(requestObject, bidRequests, bidderRequest) {
     const requests = [];
     if (config.getConfig('improvedigital.singleRequest') === true) {
-      const pbsConfig = this.pbsConfig();
-      requestObject.imp = bidRequests.map((bidRequest) => this.buildImp(bidRequest, pbsConfig));
-      requests[0] = this.formatRequest(requestObject, bidderRequest, pbsConfig);
+      const pbsModeEnabled = this.isPBSModeEnabled();
+      requestObject.imp = bidRequests.map((bidRequest) => this.buildImp(bidRequest, pbsModeEnabled));
+      requests[0] = this.formatRequest(requestObject, bidderRequest, pbsModeEnabled);
     } else {
       bidRequests.map((bidRequest) => {
         const request = deepClone(requestObject);
-        const pbsConfig = this.pbsConfig(bidRequest.params);
+        const pbsModeEnabled = this.isPBSModeEnabled(bidRequest.params);
         request.id = bidRequest.bidId || getUniqueIdentifierStr();
-        request.imp = [this.buildImp(bidRequest, pbsConfig)];
+        request.imp = [this.buildImp(bidRequest, pbsModeEnabled)];
         deepSetValue(request, 'source.tid', bidRequest.transactionId);
-        requests.push(this.formatRequest(request, bidderRequest, pbsConfig));
+        requests.push(this.formatRequest(request, bidderRequest, pbsModeEnabled));
       });
     }
 
     return requests;
   },
 
-  formatRequest(request, bidderRequest, pbsConfig) {
+  formatRequest(request, bidderRequest, pbsMode) {
     return {
       method: 'POST',
-      url: REQUEST.getUrl(pbsConfig.pbs),
+      url: REQUEST.getUrl(pbsMode),
       data: JSON.stringify(request),
       bidderRequest
     }
   },
 
-  pbsConfig(bidParams = {}) {
-    return mergeDeep({}, {
-      pbs: config.getConfig('improvedigital.pbs') === true,
-    }, bidParams)
+  isPBSModeEnabled(bidParams = {}) {
+    let pbsMode = config.getConfig('improvedigital.pbs') === true;
+
+    if (typeof bidParams.pbs === 'boolean') {
+      pbsMode = bidParams.pbs === true;
+    }
+
+    if (pbsMode === true) {
+      spec.syncStore.pbsMode = true;
+    }
+
+    return pbsMode;
   },
 
-  buildImp(bidRequest, pbsConfig) {
-    const bidderCode = pbsConfig.pbs ? 'ext.prebid.bidder.improvedigital' : 'ext.bidder';
+  buildImp(bidRequest, pbsMode) {
+    const bidderCode = pbsMode ? 'ext.prebid.bidder.improvedigital' : 'ext.bidder';
     const imp = {
       id: getBidIdParameter('bidId', bidRequest) || getUniqueIdentifierStr(),
       secure: ID_UTIL.toBit(window.location.protocol === 'https:'),
@@ -321,7 +317,7 @@ const ID_REQUEST = {
     if (placementId) {
       deepSetValue(imp, bidderCode + '.placementId', placementId);
       // When PBS Mode Enabled
-      if (pbsConfig.pbs) {
+      if (pbsMode) {
         deepSetValue(imp, 'ext.prebid.storedrequest.id', placementId);
       }
     } else {
