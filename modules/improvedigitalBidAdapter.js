@@ -11,14 +11,9 @@ import {createEidsArray} from './userId/eids.js';
 const BIDDER_CODE = 'improvedigital';
 const CREATIVE_TTL = 300;
 
-const REQUEST = {
-  PB_URL: 'https://ad.360yield.com/pb',
-  PBS_URL: 'https://pbs.360yield.com/openrtb2/auction',
-  PBS_SYNC_URL: 'https://localhost:3001/load-cookie.html?endpoint=improvedigital&gdpr=$$GDPR$$&gdpr_consent=$$GDPR_CONSENT$$',
-  getUrl(pbsMode = false) {
-    return pbsMode ? this.PBS_URL : this.PB_URL;
-  },
-};
+const AD_SERVER_URL = 'https://ad.360yield.com/pb';
+const PBS_URL = 'https://pbs.360yield.com/openrtb2/auction';
+const IFRAME_SYNC_URL = 'https://hb.360yield.com/prebid-universal-creative/load-cookie.html';
 
 const VIDEO_PARAMS = {
   DEFAULT_MIMES: ['video/mp4'],
@@ -65,7 +60,7 @@ export const spec = {
   gvlid: 253,
   aliases: ['id'],
   supportedMediaTypes: [BANNER, NATIVE, VIDEO],
-  syncStore: { pbsMode: false },
+  syncStore: { pbsMode: false, placementId: null },
 
   /**
    * Determines whether or not the given bid request is valid.
@@ -150,6 +145,9 @@ export const spec = {
     deepSetValue(request, 'source.ext.schain', bidRequest0.schain);
     deepSetValue(request, 'source.tid', bidRequest0.transactionId);
 
+    // Save a placement id to send it to the ad server when fetching the user syncs
+    this.syncStore.placementId = this.syncStore.placementId || bidRequest0.params.placementId;
+
     if (bidRequest0.userId) {
       const eids = createEidsArray(bidRequest0.userId);
       deepSetValue(request, 'user.ext.eids', eids.length ? eids : undefined);
@@ -219,17 +217,17 @@ export const spec = {
   getUserSyncs(syncOptions, serverResponses, gdprConsent) {
     const syncs = [];
 
-    if (this.syncStore.pbsMode && syncOptions.iframeEnabled) {
-      // FOR PBS MODE
+    if ((this.syncStore.pbsMode || !syncOptions.pixelEnabled) && syncOptions.iframeEnabled) {
+      const { gdprApplies, consentString } = gdprConsent || {}; 
       syncs.push({
         type: 'iframe',
-        url: REQUEST.PBS_SYNC_URL
-          .replace('$$GDPR$$', ID_UTIL.toBit(gdprConsent.gdprApplies))
-          .replace('$$GDPR_CONSENT$$', gdprConsent.consentString)
-        ,
+        url: IFRAME_SYNC_URL
+          + `?pid=${this.syncStore.placementId}`
+          + this.syncStore.pbsMode ? '&pbs=1' : ''
+          + typeof gdprApplies !== 'undefined' ? `&gdpr=${ID_UTIL.toBit(gdprApplies)}` : ''
+          + consentString ? `&gdpr_consent=${consentString}` : ''
       });
-    }
-    else if (syncOptions.pixelEnabled) {
+    } else if (syncOptions.pixelEnabled) {
       serverResponses.forEach(response => {
         const syncArr = deepAccess(response, `body.ext.${BIDDER_CODE}.sync`, []);
         syncArr.forEach(syncElement => {
@@ -256,15 +254,31 @@ registerBidder(spec);
 
 const ID_REQUEST = {
   buildServerRequests(requestObject, bidRequests, bidderRequest) {
+    const globalPbsMode = config.getConfig('improvedigital.pbs') === true;
     const requests = [];
     if (config.getConfig('improvedigital.singleRequest') === true) {
-      const pbsModeEnabled = this.isPBSModeEnabled();
-      requestObject.imp = bidRequests.map((bidRequest) => this.buildImp(bidRequest, pbsModeEnabled));
-      requests[0] = this.formatRequest(requestObject, bidderRequest, pbsModeEnabled);
+      // Split imps between those going to the ad server and those going to PBS
+      const pbsImps = [];
+      const nonPbsImps = [];
+      bidRequests.map((bidRequest) => {
+        const pbsModeEnabled = this.isPbsModeEnabled(globalPbsMode, bidRequest.params);
+        const imp = this.buildImp(bidRequest, pbsModeEnabled)
+        pbsModeEnabled ? pbsImps.push(imp) : nonPbsImps.push(imp);
+      });
+      if (pbsImps.length) {
+        const request = deepClone(requestObject);
+        request.imp = pbsImps;
+        requests.push(this.formatRequest(request, bidderRequest, true));
+      }
+      if (nonPbsImps.length) {
+        const request = deepClone(requestObject);
+        request.imp = nonPbsImps;
+        requests.push(this.formatRequest(request, bidderRequest, false));
+      }
     } else {
       bidRequests.map((bidRequest) => {
         const request = deepClone(requestObject);
-        const pbsModeEnabled = this.isPBSModeEnabled(bidRequest.params);
+        const pbsModeEnabled = this.isPbsModeEnabled(globalPbsMode, bidRequest.params);
         request.id = bidRequest.bidId || getUniqueIdentifierStr();
         request.imp = [this.buildImp(bidRequest, pbsModeEnabled)];
         deepSetValue(request, 'source.tid', bidRequest.transactionId);
@@ -278,28 +292,21 @@ const ID_REQUEST = {
   formatRequest(request, bidderRequest, pbsMode) {
     return {
       method: 'POST',
-      url: REQUEST.getUrl(pbsMode),
+      url: pbsMode ? PBS_URL : AD_SERVER_URL,
       data: JSON.stringify(request),
       bidderRequest
     }
   },
 
-  isPBSModeEnabled(bidParams = {}) {
-    let pbsMode = config.getConfig('improvedigital.pbs') === true;
-
-    if (typeof bidParams.pbs === 'boolean') {
-      pbsMode = bidParams.pbs === true;
-    }
-
-    if (pbsMode === true) {
+  isPbsModeEnabled(globalPbsMode, bidParams) {
+    const pbsMode = typeof bidParams.pbs === 'boolean' ? bidParams.pbs : globalPbsMode;
+    if (pbsMode && !spec.syncStore.pbsMode) {
       spec.syncStore.pbsMode = true;
     }
-
     return pbsMode;
   },
 
   buildImp(bidRequest, pbsMode) {
-    const bidderCode = pbsMode ? 'ext.prebid.bidder.improvedigital' : 'ext.bidder';
     const imp = {
       id: getBidIdParameter('bidId', bidRequest) || getUniqueIdentifierStr(),
       secure: ID_UTIL.toBit(window.location.protocol === 'https:'),
@@ -313,19 +320,19 @@ const ID_REQUEST = {
       deepSetValue(imp, 'bidfloorcur', bidFloorCur ? bidFloorCur.toUpperCase() : undefined);
     }
 
+    const bidderParamsPath = pbsMode ? 'ext.prebid.bidder.improvedigital' : 'ext.bidder';
     const placementId = getBidIdParameter('placementId', bidRequest.params);
     if (placementId) {
-      deepSetValue(imp, bidderCode + '.placementId', placementId);
-      // When PBS Mode Enabled
+      deepSetValue(imp, `${bidderParamsPath}.placementId`, placementId);
       if (pbsMode) {
-        deepSetValue(imp, 'ext.prebid.storedrequest.id', placementId);
+        deepSetValue(imp, 'ext.prebid.storedrequest.id', '' + placementId);
       }
     } else {
-      deepSetValue(imp, bidderCode + '.publisherId', getBidIdParameter('publisherId', bidRequest.params));
-      deepSetValue(imp, bidderCode + '.placementKey', getBidIdParameter('placementKey', bidRequest.params));
+      deepSetValue(imp, `${bidderParamsPath}.publisherId`, getBidIdParameter('publisherId', bidRequest.params));
+      deepSetValue(imp, `${bidderParamsPath}.placementKey`, getBidIdParameter('placementKey', bidRequest.params));
     }
 
-    deepSetValue(imp, bidderCode + '.keyValues', getBidIdParameter('keyValues', bidRequest.params) || undefined);
+    deepSetValue(imp, `${bidderParamsPath}.keyValues`, getBidIdParameter('keyValues', bidRequest.params) || undefined);
 
     // Adding GPID
     const gpid = deepAccess(bidRequest, 'ortb2Imp.ext.gpid') ||
@@ -494,9 +501,9 @@ const ID_RESPONSE = {
         this.buildNativeAd(bid, bidRequest, bidResponse)
       }
     } else {
-      if (bidResponse.adm.search(/^<vast/i) === 0) {
+      if (bidResponse.adm.search(/^(<\?xml|<vast)/i) !== -1) {
         this.buildVideoAd(bid, bidRequest, bidResponse);
-      } else if (bidResponse.adm.indexOf('{') === 0) {
+      } else if (bidResponse.adm[0] === '{') {
         this.buildNativeAd(bid, bidRequest, bidResponse);
       } else {
         this.buildBannerAd(bid, bidRequest, bidResponse);
