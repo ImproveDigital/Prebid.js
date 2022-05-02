@@ -90,8 +90,7 @@ export const spec = {
             version: '$prebid.version$',
           }
         }
-      },
-      test: 1
+      }
     };
 
     // Device
@@ -218,14 +217,14 @@ export const spec = {
     const syncs = [];
 
     if ((this.syncStore.pbsMode || !syncOptions.pixelEnabled) && syncOptions.iframeEnabled) {
-      const { gdprApplies, consentString } = gdprConsent || {}; 
+      const { gdprApplies, consentString } = gdprConsent || {};
       syncs.push({
         type: 'iframe',
-        url: IFRAME_SYNC_URL
-          + `?pid=${this.syncStore.placementId}`
-          + this.syncStore.pbsMode ? '&pbs=1' : ''
-          + typeof gdprApplies !== 'undefined' ? `&gdpr=${ID_UTIL.toBit(gdprApplies)}` : ''
-          + consentString ? `&gdpr_consent=${consentString}` : ''
+        url: IFRAME_SYNC_URL +
+          `?pid=${this.syncStore.placementId}` +
+          (this.syncStore.pbsMode ? '&pbs=1' : '') +
+          (typeof gdprApplies !== 'undefined' ? `&gdpr=${ID_UTIL.toBit(gdprApplies)}` : '') +
+          (consentString ? `&gdpr_consent=${consentString}` : '')
       });
     } else if (syncOptions.pixelEnabled) {
       serverResponses.forEach(response => {
