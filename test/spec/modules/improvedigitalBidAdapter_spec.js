@@ -35,15 +35,25 @@ describe('Improve Digital Adapter Tests', function () {
     skipafter: 30
   }
 
-  const instreamBidRequest = deepClone(simpleBidRequest);
-  instreamBidRequest.mediaTypes = {
-    video: {
-      context: 'instream',
-      playerSize: [640, 480]
+  const instreamBidRequest = {
+    bidder: 'improvedigital',
+    params: {
+      placementId: 123456
+    },
+    adUnitCode: 'video1',
+    transactionId: 'vf183e871-fbed-45f0-a427-c8a63c4c01eb',
+    bidId: '33e9500b21129f',
+    bidderRequestId: 'v2772c1e566670b',
+    auctionId: 'v192721e36a0239',
+    mediaTypes: {
+      video: {
+        context: 'instream',
+        playerSize: [640, 480]
+      }
     }
   };
 
-  const outstreamBidRequest = deepClone(simpleBidRequest);
+  const outstreamBidRequest = deepClone(instreamBidRequest);
   outstreamBidRequest.mediaTypes = {
     video: {
       context: 'outstream',
@@ -656,56 +666,43 @@ describe('Improve Digital Adapter Tests', function () {
       getConfigStub.restore();
     });
 
-    it('should set PBS_URL when pbs mode enabled from configure', function () {
+    it('should set pbs url when pbs mode enabled from global configuration', function () {
       const getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.pbs').returns(true);
       const request = spec.buildRequests([simpleBidRequest], bidderRequest)[0];
+      expect(request.method).to.equal(METHOD);
       expect(request.url).to.equal(PBS_URL);
-      expect(request.bidderRequest).to.deep.equal(bidderRequest);
-      const payload = JSON.parse(request.data);
-      expect(payload).to.be.an('object');
-      expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal(1053688);
       getConfigStub.restore();
     });
 
-    it('should set PBS_URL when pbs mode enabled from params', function () {
+    // expect(request.bidderRequest).to.deep.equal(bidderRequest);
+    // const payload = JSON.parse(request.data);
+    // expect(payload).to.be.an('object');
+    // expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal(1053688);
+
+    it('should set pbs url when pbs mode enabled in adunit params', function () {
       const bidRequest = deepClone(simpleBidRequest);
       bidRequest.params.pbs = true;
-      const request = spec.buildRequests([bidRequest], bidderRequest)[0];
-      expect(request.method).to.equal(METHOD);
+      let request = spec.buildRequests([bidRequest], { bids: [bidRequest] })[0];
       expect(request.url).to.equal(PBS_URL);
-      expect(request.bidderRequest).to.deep.equal(bidderRequest);
-      const payload = JSON.parse(request.data);
-      expect(payload).to.be.an('object');
-      expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal(1053688);
-    });
 
-    it('should not set PBS_URL when pbs mode disabled from params', function () {
       const getConfigStub = sinon.stub(config, 'getConfig');
-      getConfigStub.withArgs('improvedigital.pbs').returns(true);
-      const bidRequest = deepClone(simpleBidRequest);
-      bidRequest.params.pbs = false;
-      const request = spec.buildRequests([bidRequest], bidderRequest)[0];
-      expect(request.method).to.equal(METHOD);
-      expect(request.url).to.equal(URL);
-      expect(request.bidderRequest).to.deep.equal(bidderRequest);
-      const payload = JSON.parse(request.data);
-      expect(payload).to.be.an('object');
-      getConfigStub.restore();
-    });
 
-    it('should set PBS_URL when pbs mode enabled from params and disabled from config', function () {
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      // adunit param takes precedence over the global config
       getConfigStub.withArgs('improvedigital.pbs').returns(false);
-      const bidRequest = deepClone(simpleBidRequest);
-      bidRequest.params.pbs = true;
-      const request = spec.buildRequests([bidRequest], bidderRequest)[0];
-      expect(request.method).to.equal(METHOD);
+      request = spec.buildRequests([bidRequest], { bids: [bidRequest] })[0];
       expect(request.url).to.equal(PBS_URL);
-      expect(request.bidderRequest).to.deep.equal(bidderRequest);
-      const payload = JSON.parse(request.data);
-      expect(payload).to.be.an('object');
-      expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal(1053688);
+
+      bidRequest.params.pbs = false;
+      getConfigStub.withArgs('improvedigital.pbs').returns(true);
+      request = spec.buildRequests([bidRequest], { bids: [bidRequest] })[0];
+      expect(request.url).to.equal(AD_SERVER_URL);
+
+      const requests = spec.buildRequests([bidRequest, instreamBidRequest], { bids: [bidRequest, instreamBidRequest] });
+      expect(requests.length).to.equal(2);
+      expect(requests[0].url).to.equal(AD_SERVER_URL);
+      expect(requests[1].url).to.equal(PBS_URL);
+
       getConfigStub.restore();
     });
   });
