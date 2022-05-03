@@ -515,12 +515,29 @@ describe('Improve Digital Adapter Tests', function () {
     it('should return one request in a single request mode', function () {
       const getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.singleRequest').returns(true);
-      const requests = spec.buildRequests([
-        simpleBidRequest,
-        simpleSmartTagBidRequest
-      ], bidderRequest);
+      const requests = spec.buildRequests([ simpleBidRequest, instreamBidRequest ], bidderRequest);
       expect(requests).to.be.an('array');
       expect(requests.length).to.equal(1);
+      expect(requests[0].url).to.equal(AD_SERVER_URL);
+      const request = JSON.parse(requests[0].data);
+      expect(request.imp.length).to.equal(2);
+      expect(request.imp[0].banner).to.exist;
+      expect(request.imp[1].video).to.exist;
+      getConfigStub.restore();
+    });
+
+    it('should create one request per endpoint in a single request mode', function () {
+      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub.withArgs('improvedigital.singleRequest').returns(true);
+      const requests = spec.buildRequests([ pbsBidRequest, simpleBidRequest, instreamBidRequest ], bidderRequest);
+      expect(requests).to.be.an('array');
+      expect(requests.length).to.equal(2);
+      expect(requests[0].url).to.equal(PBS_URL);
+      expect(requests[1].url).to.equal(AD_SERVER_URL);
+      const adServerRequest = JSON.parse(requests[1].data);
+      expect(adServerRequest.imp.length).to.equal(2);
+      expect(adServerRequest.imp[0].banner).to.exist;
+      expect(adServerRequest.imp[1].video).to.exist;
       getConfigStub.restore();
     });
 
@@ -676,19 +693,32 @@ describe('Improve Digital Adapter Tests', function () {
       getConfigStub.restore();
     });
 
-    it('should set pbs url when pbs mode enabled from global configuration', function () {
+    it('should set pbs params when pbs mode enabled from global configuration', function () {
       const getConfigStub = sinon.stub(config, 'getConfig');
+      const bannerRequest = deepClone(simpleBidRequest);
+      const keyValues = { testKey: [ 'testValue' ] };
+      bannerRequest.params.keyValues = keyValues;
+
       getConfigStub.withArgs('improvedigital.pbs').returns(true);
-      const request = spec.buildRequests([simpleBidRequest], bidderRequest)[0];
-      expect(request.method).to.equal(METHOD);
-      expect(request.url).to.equal(PBS_URL);
+      const requests = spec.buildRequests([bannerRequest, instreamBidRequest], bidderRequest);
+      expect(requests[0].method).to.equal(METHOD);
+      expect(requests[0].url).to.equal(PBS_URL);
+      expect(requests[1].url).to.equal(PBS_URL);
+      // banner
+      let payload = JSON.parse(requests[0].data);
+      expect(payload.imp[0].ext.bidder).to.not.exist;
+      expect(payload.imp[0].ext.prebid.bidder.improvedigital).to.deep.equal({
+        placementId: 1053688,
+        keyValues
+      });
+      expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal('1053688');
+      // video
+      payload = JSON.parse(requests[1].data);
+      expect(payload.imp[0].ext.bidder).to.not.exist;
+      expect(payload.imp[0].ext.prebid.bidder.improvedigital.placementId).to.equal(123456);
+      expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal('123456');
       getConfigStub.restore();
     });
-
-    // expect(request.bidderRequest).to.deep.equal(bidderRequest);
-    // const payload = JSON.parse(request.data);
-    // expect(payload).to.be.an('object');
-    // expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal(1053688);
 
     it('should set pbs url when pbs mode enabled in adunit params', function () {
       const bidRequest = deepClone(pbsBidRequest);
