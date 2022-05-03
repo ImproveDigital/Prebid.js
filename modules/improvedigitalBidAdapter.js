@@ -218,8 +218,11 @@ export const spec = {
    * @return {UserSync[]} The user syncs which should be dropped.
    */
   getUserSyncs(syncOptions, serverResponses, gdprConsent) {
-    const syncs = [];
+    if (config.getConfig('coppa') === true) {
+      return [];
+    }
 
+    const syncs = [];
     if ((this.syncStore.pbsMode || !syncOptions.pixelEnabled) && syncOptions.iframeEnabled) {
       const { gdprApplies, consentString } = gdprConsent || {};
       syncs.push({
@@ -496,6 +499,7 @@ const ID_RESPONSE = {
         this.buildNativeAd(bid, bidRequest, bidResponse)
       }
     } else {
+      // Detect media type for multi-format response
       if (bidResponse.adm.search(/^(<\?xml|<vast)/i) !== -1) {
         this.buildVideoAd(bid, bidRequest, bidResponse);
       } else if (bidResponse.adm[0] === '{') {
