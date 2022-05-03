@@ -8,6 +8,7 @@ describe('Improve Digital Adapter Tests', function () {
   const METHOD = 'POST';
   const AD_SERVER_URL = 'https://ad.360yield.com/pb';
   const PBS_URL = 'https://pbs.360yield.com/openrtb2/auction';
+  const IFRAME_SYNC_URL = 'https://hb.360yield.com/prebid-universal-creative/load-cookie.html';
   const INSTREAM_TYPE = 1;
   const OUTSTREAM_TYPE = 3;
 
@@ -28,6 +29,9 @@ describe('Improve Digital Adapter Tests', function () {
     },
     sizes: [[300, 250], [160, 600]]
   };
+
+  const pbsBidRequest = deepClone(simpleBidRequest);
+  pbsBidRequest.params.pbs = true;
 
   const videoParams = {
     skip: 1,
@@ -86,6 +90,10 @@ describe('Improve Digital Adapter Tests', function () {
     bids: [simpleBidRequest]
   };
 
+  const pbsBidderRequest = {
+    bids: [pbsBidRequest]
+  };
+
   const instreamBidderRequest = {
     bids: [instreamBidRequest]
   };
@@ -98,14 +106,16 @@ describe('Improve Digital Adapter Tests', function () {
     bids: [multiFormatBidRequest]
   };
 
+  const gdprConsent = {
+    consentString: 'CONSENT',
+    vendorData: {},
+    gdprApplies: true,
+    addtlConsent: '1~1.35.41.101',
+  };
+
   const bidderRequestGdpr = {
     bids: [simpleBidRequest],
-    gdprConsent: {
-      consentString: 'BOJ/P2HOJ/P2HABABMAAAAAZ+A==',
-      vendorData: {},
-      gdprApplies: true,
-      addtlConsent: '1~1.35.41.101',
-    },
+    gdprConsent
   };
 
   const bidderRequestReferrer = {
@@ -287,7 +297,7 @@ describe('Improve Digital Adapter Tests', function () {
       const bidRequest = Object.assign({}, simpleBidRequest);
       const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequestGdpr)[0].data);
       expect(payload.regs.ext.gdpr).to.exist.and.to.equal(1);
-      expect(payload.user.ext.consent).to.equal('BOJ/P2HOJ/P2HABABMAAAAAZ+A==');
+      expect(payload.user.ext.consent).to.equal('CONSENT');
       expect(payload.user.ext.consented_providers_settings.consented_providers).to.exist.and.to.deep.equal([1, 35, 41, 101]);
     });
 
@@ -681,8 +691,7 @@ describe('Improve Digital Adapter Tests', function () {
     // expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal(1053688);
 
     it('should set pbs url when pbs mode enabled in adunit params', function () {
-      const bidRequest = deepClone(simpleBidRequest);
-      bidRequest.params.pbs = true;
+      const bidRequest = deepClone(pbsBidRequest);
       let request = spec.buildRequests([bidRequest], { bids: [bidRequest] })[0];
       expect(request.url).to.equal(PBS_URL);
 
@@ -737,7 +746,16 @@ describe('Improve Digital Adapter Tests', function () {
           ],
           'seat': 'improvedigital'
         }
-      ]
+      ],
+      ext: {
+        improvedigital: {
+          sync: [
+            'https://link1',
+            'https://link2',
+            'https://link3',
+          ]
+        }
+      }
     }
   };
 
@@ -797,7 +815,7 @@ describe('Improve Digital Adapter Tests', function () {
           sync: [
             'https://link1',
             'https://link2',
-            'https://link3',
+            'https://link4',
           ]
         }
       }
@@ -1132,21 +1150,70 @@ describe('Improve Digital Adapter Tests', function () {
   });
 
   describe('getUserSyncs', function () {
-    const serverResponses = [ serverResponseTwoBids ];
+    const serverResponses = [ serverResponse, serverResponseTwoBids ];
+    const pixelSyncs = [
+      { type: 'image', url: 'https://link1' },
+      { type: 'image', url: 'https://link2' },
+      { type: 'image', url: 'https://link3' },
+      { type: 'image', url: 'https://link4' }
+    ];
 
-    it('should return no syncs when pixel syncing is disabled', function () {
-      const syncs = spec.getUserSyncs({ pixelEnabled: false }, serverResponses);
+    const basicIframeSyncUrl = `${IFRAME_SYNC_URL}?placement_id=1053688`;
+
+    this.beforeEach(function () {
+      spec.syncStore = { pbsMode: false, placementId: null };
+    });
+
+    it('should return no syncs when neither iframe nor pixel syncing is enabled', function () {
+      const syncs = spec.getUserSyncs({ iframeEnabled: false, pixelEnabled: false }, serverResponses);
       expect(syncs).to.deep.equal([]);
     });
 
-    it('should return user syncs', function () {
+    it('should return pixel user syncs for the ad server mode', function () {
       const syncs = spec.getUserSyncs({ pixelEnabled: true }, serverResponses);
-      const expected = [
-        { type: 'image', url: 'https://link1' },
-        { type: 'image', url: 'https://link2' },
-        { type: 'image', url: 'https://link3' }
-      ];
-      expect(syncs).to.deep.equal(expected);
+      expect(syncs).to.deep.equal(pixelSyncs);
+    });
+
+    it('should return pixel user syncs for pbs mode when iframe mode disabled', function () {
+      // Set spec.syncStore vars
+      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub.withArgs('improvedigital.pbs').returns(true);
+      spec.buildRequests([simpleBidRequest], bidderRequest);
+
+      const syncs = spec.getUserSyncs({ pixelEnabled: true }, serverResponses);
+      expect(syncs).to.deep.equal(pixelSyncs);
+      getConfigStub.restore();
+    });
+
+    it('should return iframe user sync for the ad server mode when pixel mode disabled', function () {
+      spec.buildRequests([simpleBidRequest], bidderRequest);
+      const syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: false }, serverResponses);
+      expect(syncs).to.deep.equal([{ type: 'iframe', url: basicIframeSyncUrl }]);
+    });
+
+    it('should attach consent to iframe sync url', function () {
+      spec.buildRequests([simpleBidRequest], bidderRequest);
+      let syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: false }, serverResponses, gdprConsent);
+      expect(syncs).to.deep.equal([{ type: 'iframe', url: `${basicIframeSyncUrl}&gdpr=1&gdpr_consent=CONSENT` }]);
+
+      syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: false }, serverResponses, { gdprApplies: false });
+      expect(syncs).to.deep.equal([{ type: 'iframe', url: `${basicIframeSyncUrl}&gdpr=0` }]);
+    });
+
+    it('should return iframe user sync for the pbs mode when iframe mode enabled', function () {
+      const expectedSync = [{ type: 'iframe', url: basicIframeSyncUrl + '&pbs=1' }];
+      spec.buildRequests([simpleBidRequest, pbsBidRequest]);
+      let syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, serverResponses);
+      expect(syncs).to.deep.equal(expectedSync);
+
+      // Set spec.syncStore vars
+      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub.withArgs('improvedigital.pbs').returns(true);
+      spec.buildRequests([simpleBidRequest], bidderRequest);
+
+      syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, serverResponses);
+      expect(syncs).to.deep.equal(expectedSync);
+      getConfigStub.restore();
     });
   });
 });

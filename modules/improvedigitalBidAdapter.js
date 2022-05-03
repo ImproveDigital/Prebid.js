@@ -225,7 +225,7 @@ export const spec = {
       syncs.push({
         type: 'iframe',
         url: IFRAME_SYNC_URL +
-          `?pid=${this.syncStore.placementId}` +
+          `?placement_id=${this.syncStore.placementId}` +
           (this.syncStore.pbsMode ? '&pbs=1' : '') +
           (typeof gdprApplies !== 'undefined' ? `&gdpr=${ID_UTIL.toBit(gdprApplies)}` : '') +
           (consentString ? `&gdpr_consent=${consentString}` : '')
@@ -233,23 +233,15 @@ export const spec = {
     } else if (syncOptions.pixelEnabled) {
       serverResponses.forEach(response => {
         const syncArr = deepAccess(response, `body.ext.${BIDDER_CODE}.sync`, []);
-        syncArr.forEach(syncElement => {
-          if (syncs.indexOf(syncElement) === -1) {
-            syncs.push(syncElement);
+        syncArr.forEach(url => {
+          if (!syncs.some(sync => sync.url === url)) {
+            syncs.push({ type: 'image', url });
           }
         });
       });
     }
 
-    return syncs.map(sync => {
-      if (typeof sync === 'object' && sync.type && sync.url) {
-        return {
-          type: sync.type,
-          url: sync.url,
-        }
-      }
-      return { type: 'image', url: sync }
-    });
+    return syncs;
   }
 };
 
