@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { spec } from 'modules/improvedigitalBidAdapter.js';
 import { config } from 'src/config.js';
 import { deepClone } from 'src/utils.js';
-import {BANNER, VIDEO} from '../../../src/mediaTypes';
+import {BANNER, NATIVE, VIDEO} from '../../../src/mediaTypes';
 
 describe('Improve Digital Adapter Tests', function () {
   const METHOD = 'POST';
@@ -65,10 +65,18 @@ describe('Improve Digital Adapter Tests', function () {
     }
   };
 
+  const nativeBidRequest = deepClone(simpleBidRequest);
+  nativeBidRequest.mediaTypes = { native: {} };
+
   const multiFormatBidRequest = deepClone(simpleBidRequest);
   multiFormatBidRequest.mediaTypes = {
     banner: {
       sizes: [[300, 250], [160, 600]]
+    },
+    native: {
+      body: {
+        required: true
+      }
     },
     video: {
       context: 'outstream',
@@ -104,6 +112,10 @@ describe('Improve Digital Adapter Tests', function () {
 
   const multiFormatBidderRequest = {
     bids: [multiFormatBidRequest]
+  };
+
+  const nativeBidderRequest = {
+    bids: [nativeBidRequest]
   };
 
   const gdprConsent = {
@@ -165,8 +177,17 @@ describe('Improve Digital Adapter Tests', function () {
   });
 
   describe('buildRequests', function () {
+    let getConfigStub = null;
+
+    afterEach(function () {
+      if (getConfigStub) {
+        getConfigStub.restore();
+        getConfigStub = null;
+      }
+    });
+
     it('should make a well-formed request objects', function () {
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.usePrebidSizes').returns(true);
       const request = spec.buildRequests([simpleBidRequest], bidderRequest)[0];
       expect(request).to.be.an('object');
@@ -201,11 +222,10 @@ describe('Improve Digital Adapter Tests', function () {
           }
         }
       ]);
-      getConfigStub.restore();
     });
 
     it('should make a well-formed request object for multi-format ad unit', function () {
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.usePrebidSizes').returns(true);
       const request = spec.buildRequests([multiFormatBidRequest], multiFormatBidderRequest)[0];
       expect(request).to.be.an('object');
@@ -218,6 +238,10 @@ describe('Improve Digital Adapter Tests', function () {
       expect(payload.imp).to.deep.equal([
         {
           id: '33e9500b21129f',
+          native: {
+            request: '{"assets":[{"id":3,"required":1,"data":{"type":2}}]}',
+            ver: '1.2'
+          },
           secure: 0,
           ext: {
             bidder: {
@@ -238,7 +262,6 @@ describe('Improve Digital Adapter Tests', function () {
           }
         }
       ]);
-      getConfigStub.restore();
     });
 
     it('should set placementKey and publisherId for smart tags', function () {
@@ -261,10 +284,9 @@ describe('Improve Digital Adapter Tests', function () {
 
     it('should add currency', function () {
       const bidRequest = Object.assign({}, simpleBidRequest);
-      const getConfigStub = sinon.stub(config, 'getConfig').returns('JPY');
+      getConfigStub = sinon.stub(config, 'getConfig').returns('JPY');
       const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequest)[0].data);
       expect(payload.cur).to.deep.equal(['JPY']);
-      getConfigStub.restore();
     });
 
     it('should add bid floor', function () {
@@ -513,7 +535,7 @@ describe('Improve Digital Adapter Tests', function () {
     });
 
     it('should return one request in a single request mode', function () {
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.singleRequest').returns(true);
       const requests = spec.buildRequests([ simpleBidRequest, instreamBidRequest ], bidderRequest);
       expect(requests).to.be.an('array');
@@ -523,11 +545,10 @@ describe('Improve Digital Adapter Tests', function () {
       expect(request.imp.length).to.equal(2);
       expect(request.imp[0].banner).to.exist;
       expect(request.imp[1].video).to.exist;
-      getConfigStub.restore();
     });
 
     it('should create one request per endpoint in a single request mode', function () {
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.singleRequest').returns(true);
       const requests = spec.buildRequests([ pbsBidRequest, simpleBidRequest, instreamBidRequest ], bidderRequest);
       expect(requests).to.be.an('array');
@@ -538,11 +559,10 @@ describe('Improve Digital Adapter Tests', function () {
       expect(adServerRequest.imp.length).to.equal(2);
       expect(adServerRequest.imp[0].banner).to.exist;
       expect(adServerRequest.imp[1].video).to.exist;
-      getConfigStub.restore();
     });
 
     it('should set Prebid sizes in bid request', function () {
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.usePrebidSizes').returns(true);
       const request = spec.buildRequests([simpleBidRequest], bidderRequest)[0];
       const payload = JSON.parse(request.data);
@@ -552,11 +572,10 @@ describe('Improve Digital Adapter Tests', function () {
           { w: 160, h: 600 }
         ]
       });
-      getConfigStub.restore();
     });
 
     it('should not add single size filter when using Prebid sizes', function () {
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.usePrebidSizes').returns(true);
       const bidRequest = Object.assign({}, simpleBidRequest);
       const size = {
@@ -572,7 +591,6 @@ describe('Improve Digital Adapter Tests', function () {
           { w: 160, h: 600 }
         ]
       });
-      getConfigStub.restore();
     });
 
     it('should set GPID and Instl Signal', function () {
@@ -614,29 +632,27 @@ describe('Improve Digital Adapter Tests', function () {
     });
 
     it('should not set site when app is defined in FPD', function () {
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('ortb2.app').returns({ content: 'XYZ' });
       let request = spec.buildRequests([simpleBidRequest], bidderRequest)[0];
       let payload = JSON.parse(request.data);
       expect(payload.site).does.not.exist;
       expect(payload.app).does.exist;
       expect(payload.app.content).does.exist.and.equal('XYZ');
-      getConfigStub.restore();
     });
 
     it('should not set site when app is defined in CONFIG', function () {
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('app').returns({ content: 'XYZ' });
       let request = spec.buildRequests([simpleBidRequest], bidderRequest)[0];
       let payload = JSON.parse(request.data);
       expect(payload.site).does.not.exist;
       expect(payload.app).does.exist;
       expect(payload.app.content).does.exist.and.equal('XYZ');
-      getConfigStub.restore();
     });
 
     it('should set correct site params', function () {
-      let getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('site').returns({
         content: 'XYZ',
         page: 'https://improveditigal.com/',
@@ -663,11 +679,10 @@ describe('Improve Digital Adapter Tests', function () {
       expect(payload.site.content).does.exist.and.equal('ZZZ');
       expect(payload.site.page).does.exist.and.equal('https://blah.com/test.html');
       expect(payload.site.domain).does.exist.and.equal('blah.com');
-      getConfigStub.restore();
     });
 
     it('should set pageUrl as site param', function () {
-      let getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('pageUrl').returns('https://improvidigital.com/test-page');
       let request = spec.buildRequests([simpleBidRequest], bidderRequestReferrer)[0];
       let payload = JSON.parse(request.data);
@@ -680,21 +695,19 @@ describe('Improve Digital Adapter Tests', function () {
       payload = JSON.parse(request.data);
       expect(payload.site.page).does.exist.and.equal('https://blah.com/test.html');
       expect(payload.site.domain).does.exist.and.equal('blah.com');
-      getConfigStub.restore();
     });
 
     it('should set site when app not available', function () {
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('app').returns(undefined);
       let request = spec.buildRequests([simpleBidRequest], bidderRequest)[0];
       let payload = JSON.parse(request.data);
       expect(payload.site).does.exist;
       expect(payload.app).does.not.exist;
-      getConfigStub.restore();
     });
 
     it('should set pbs params when pbs mode enabled from global configuration', function () {
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       const bannerRequest = deepClone(simpleBidRequest);
       const keyValues = { testKey: [ 'testValue' ] };
       bannerRequest.params.keyValues = keyValues;
@@ -717,7 +730,6 @@ describe('Improve Digital Adapter Tests', function () {
       expect(payload.imp[0].ext.bidder).to.not.exist;
       expect(payload.imp[0].ext.prebid.bidder.improvedigital.placementId).to.equal(123456);
       expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal('123456');
-      getConfigStub.restore();
     });
 
     it('should set pbs url when pbs mode enabled in adunit params', function () {
@@ -725,7 +737,7 @@ describe('Improve Digital Adapter Tests', function () {
       let request = spec.buildRequests([bidRequest], { bids: [bidRequest] })[0];
       expect(request.url).to.equal(PBS_URL);
 
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
 
       // adunit param takes precedence over the global config
       getConfigStub.withArgs('improvedigital.pbs').returns(false);
@@ -741,8 +753,6 @@ describe('Improve Digital Adapter Tests', function () {
       expect(requests.length).to.equal(2);
       expect(requests[0].url).to.equal(AD_SERVER_URL);
       expect(requests[1].url).to.equal(PBS_URL);
-
-      getConfigStub.restore();
     });
   });
 
@@ -875,7 +885,7 @@ describe('Improve Digital Adapter Tests', function () {
               'id': '52098fad-20c1-476b-a4fa-41e275e5a4a5',
               'price': 1.8600000000000003,
               'adm': "{\"ver\":\"1.1\",\"imptrackers\":[\"https://secure.adnxs.com/imptr?id=52311&t=2\",\"https://euw-ice.360yield.com/imp_pixel?ic=hcUBlCANx1FabHBf6FR2gC7UO4xEyXahdZAn0-B5qL-bb3A74BJ1smyWIyW7IWcC0SOjSXzVpevTHXxTqJ.sf.Qhahyy6tSo.0j1QWfXlH8sM4-8vKWjMjw-x.IrJJNlwkQ0s1CdwcwTefcLXm5l2E-W19VhACuV7f3mgrZMNjiSw.SjJAfyPC3SIyAMRjYfj53UmjriQ46T7lhmkqxK8wHmksYCdbZc3PZESk8NWl28sxdjNvnYYCFMcJbeav.LOLabyTXfwy-1cEPbQs.IKMRZIKaqccTDPV3wOtzbNv0jQzatd3Nnv-PGFQcjQ-GW3i27W04Fws4kodpFSn-B6VwZAjzLzoyd5gBncyRnAyCplEbgHU5sZ1IyKHWjgCl3ZtRIK5vqrRD5D-xqgSnOi7-phG.CqZWDZ4bMDSfQg2ZnbvUTyGKcEl0WR59dW5izTMV4Fjizcrvr5T-t.zMbGwz.hGnmLIyhTqh.IcwW.GiDLVExlDlix5S1LXIWVsSyrQ==\"],\"assets\":[{\"id\":1,\"data\":{\"value\":\"ImproveDigital\",\"type\":1}},{\"id\":3,\"data\":{\"value\":\"Test content.\",\"type\":2}},{\"id\":0,\"title\":{\"text\":\"Sample Prebid Test Title\"}}],\"link\":{\"url\":\"https://euw-ice.360yield.com/click/hcUBlHOV7YhVse8RyBa0ajjyPa9Vt17e4g-1m3cRj3E67vq-RYux.SiUeAmBfNBcoOqkUc6A15AWmi4yFu5K-BdkaYjildyyk7fNLyR6hWr411kv4vrFwm5jrIBceuHS6K8oN69f.uCo8zGTdR2TbSlldwcpahQPlufZU.6VaMsu4IC53uEiUT5vb7kAw6TTlxuGBNq6zaGryiWEV2.N3YYJDTyYPh8tv-ZFyeFZFm0Gnjv.xWbC.70JcRUVU9UelQaPsTpTWYTXBhJt84YJUw1-GNtaLNVLSjjZbVoA2fsMti5p6OBmF.7u39on2OPgvseIkSmge7Pqg63pRqdP75hp.DAEk6OkcN1jGnwP2DSbvpaSbin5lVqjfO0B-wnQgfQTCUtM5v4JmkNweLhUf9Q-x.nPKLW5SccEk9ZFXzY2-1wpT3PWm8Tix3NRscLPZub9wHzL..pl6ip8cQ9hp16UjwT4H6RMAxL0R7bl-h2pAicGAzYmuO7ntRESKUoIWA==//http%3A%2F%2Fquantum-advertising.com%2Ffr%2F\"},\"jstracker\":\"<script type=\\\"application/javascript\\\">var js_tracker = ['https://secure.adnxs.com/imptr?id=52312&t=1', 'https://pixel.adsafeprotected.com/rjss/st/291611/36974035/skeleton.js?ias_adpath=[class~=ea_improve_pid_${TAG_ID}]']</script>\"}",
-              'impid': '2d7a7db325c6f',
+              'impid': '33e9500b21129f',
               'cid': '196108'
             }
           ],
@@ -1128,10 +1138,6 @@ describe('Improve Digital Adapter Tests', function () {
     //
     // Native ads
     it('should return a well-formed native ad bid', function () {
-      const nativeBidderRequest = deepClone(bidderRequest);
-      nativeBidderRequest.bids[0].bidId = '2d7a7db325c6f';
-      delete nativeBidderRequest.bids[0].mediaTypes.banner;
-      nativeBidderRequest.bids[0].mediaTypes.native = {};
       const bids = spec.interpretResponse(serverResponseNative, {bidderRequest: nativeBidderRequest});
       // Verify Native Response
       expect(bids[0].native).to.exist;
@@ -1148,6 +1154,11 @@ describe('Improve Digital Adapter Tests', function () {
       expect(nativeBid.body).to.exist.and.equal('Test content.');
     });
 
+    it('should return a well-formed native bid for multi-format ad unit', function () {
+      const bids = spec.interpretResponse(serverResponseNative, {bidderRequest: multiFormatBidderRequest});
+      expect(bids[0].mediaType).to.equal(NATIVE);
+    });
+
     // Video
     it('should return a well-formed instream video bid', function () {
       const bids = spec.interpretResponse(serverResponseVideo, {bidderRequest: instreamBidderRequest});
@@ -1162,10 +1173,19 @@ describe('Improve Digital Adapter Tests', function () {
     });
 
     it('should return a well-formed outstream video bid for multi-format ad unit', function () {
-      const bids = spec.interpretResponse(serverResponseVideo, {bidderRequest: multiFormatBidderRequest});
+      const videoResponse = deepClone(serverResponseVideo);
+      let bids = spec.interpretResponse(videoResponse, {bidderRequest: multiFormatBidderRequest});
       expect(bids[0].renderer).to.exist;
       delete (bids[0].renderer);
       expect(bids).to.deep.equal(expectedBidOutstreamVideo);
+
+      videoResponse.body.seatbid[0].bid[0].adm = '<vAst';
+      bids = spec.interpretResponse(videoResponse, {bidderRequest: multiFormatBidderRequest});
+      expect(bids[0].mediaType).to.equal(VIDEO);
+
+      videoResponse.body.seatbid[0].bid[0].adm = '<?xml';
+      bids = spec.interpretResponse(videoResponse, {bidderRequest: multiFormatBidderRequest});
+      expect(bids[0].mediaType).to.equal(VIDEO);
     });
 
     it('should not affect non-RAZR bids', function () {
@@ -1190,12 +1210,28 @@ describe('Improve Digital Adapter Tests', function () {
 
     const basicIframeSyncUrl = `${IFRAME_SYNC_URL}?placement_id=1053688`;
 
-    this.beforeEach(function () {
+    let getConfigStub = null;
+
+    beforeEach(function () {
       spec.syncStore = { pbsMode: false, placementId: null };
+    });
+
+    afterEach(function () {
+      if (getConfigStub) {
+        getConfigStub.restore();
+        getConfigStub = null;
+      }
     });
 
     it('should return no syncs when neither iframe nor pixel syncing is enabled', function () {
       const syncs = spec.getUserSyncs({ iframeEnabled: false, pixelEnabled: false }, serverResponses);
+      expect(syncs).to.deep.equal([]);
+    });
+
+    it('should return no syncs for COPPA users', function () {
+      getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub.withArgs('coppa').returns(true);
+      const syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, serverResponses);
       expect(syncs).to.deep.equal([]);
     });
 
@@ -1206,13 +1242,12 @@ describe('Improve Digital Adapter Tests', function () {
 
     it('should return pixel user syncs for pbs mode when iframe mode disabled', function () {
       // Set spec.syncStore vars
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.pbs').returns(true);
       spec.buildRequests([simpleBidRequest], bidderRequest);
 
       const syncs = spec.getUserSyncs({ pixelEnabled: true }, serverResponses);
       expect(syncs).to.deep.equal(pixelSyncs);
-      getConfigStub.restore();
     });
 
     it('should return iframe user sync for the ad server mode when pixel mode disabled', function () {
@@ -1237,13 +1272,12 @@ describe('Improve Digital Adapter Tests', function () {
       expect(syncs).to.deep.equal(expectedSync);
 
       // Set spec.syncStore vars
-      const getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.pbs').returns(true);
       spec.buildRequests([simpleBidRequest], bidderRequest);
 
       syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, serverResponses);
       expect(syncs).to.deep.equal(expectedSync);
-      getConfigStub.restore();
     });
   });
 });
