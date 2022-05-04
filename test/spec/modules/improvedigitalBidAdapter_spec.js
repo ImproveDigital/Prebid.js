@@ -3,6 +3,7 @@ import { spec } from 'modules/improvedigitalBidAdapter.js';
 import { config } from 'src/config.js';
 import { deepClone } from 'src/utils.js';
 import {BANNER, NATIVE, VIDEO} from '../../../src/mediaTypes';
+import { deepSetValue } from '../../../src/utils';
 
 describe('Improve Digital Adapter Tests', function () {
   const METHOD = 'POST';
@@ -119,8 +120,9 @@ describe('Improve Digital Adapter Tests', function () {
   };
 
   const gdprConsent = {
+    apiVersion: 2,
     consentString: 'CONSENT',
-    vendorData: {},
+    vendorData: { purpose: { consents: { 1: true } } },
     gdprApplies: true,
     addtlConsent: '1~1.35.41.101',
   };
@@ -1210,6 +1212,8 @@ describe('Improve Digital Adapter Tests', function () {
 
     const basicIframeSyncUrl = `${IFRAME_SYNC_URL}?placement_id=1053688`;
 
+    const uspConsent = '1YYY';
+
     let getConfigStub = null;
 
     beforeEach(function () {
@@ -1235,6 +1239,13 @@ describe('Improve Digital Adapter Tests', function () {
       expect(syncs).to.deep.equal([]);
     });
 
+    it('should return no syncs for when GDPR consent for purpose 1 not given', function () {
+      const consent = deepClone(gdprConsent);
+      deepSetValue(consent, 'vendorData.purpose.consents.1', false);
+      const syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, serverResponses, consent);
+      expect(syncs).to.deep.equal([]);
+    });
+
     it('should return pixel user syncs for the ad server mode', function () {
       const syncs = spec.getUserSyncs({ pixelEnabled: true }, serverResponses);
       expect(syncs).to.deep.equal(pixelSyncs);
@@ -1256,13 +1267,19 @@ describe('Improve Digital Adapter Tests', function () {
       expect(syncs).to.deep.equal([{ type: 'iframe', url: basicIframeSyncUrl }]);
     });
 
-    it('should attach consent to iframe sync url', function () {
+    it('should attach gdpr consent to iframe sync url', function () {
       spec.buildRequests([simpleBidRequest], bidderRequest);
       let syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: false }, serverResponses, gdprConsent);
       expect(syncs).to.deep.equal([{ type: 'iframe', url: `${basicIframeSyncUrl}&gdpr=1&gdpr_consent=CONSENT` }]);
 
       syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: false }, serverResponses, { gdprApplies: false });
       expect(syncs).to.deep.equal([{ type: 'iframe', url: `${basicIframeSyncUrl}&gdpr=0` }]);
+    });
+
+    it('should attach usp consent to iframe sync url', function () {
+      spec.buildRequests([simpleBidRequest], bidderRequest);
+      let syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: false }, serverResponses, null, uspConsent);
+      expect(syncs).to.deep.equal([{ type: 'iframe', url: `${basicIframeSyncUrl}&us_privacy=${uspConsent}` }]);
     });
 
     it('should return iframe user sync for the pbs mode when iframe mode enabled', function () {

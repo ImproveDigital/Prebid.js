@@ -217,8 +217,8 @@ export const spec = {
    * @param {ServerResponse[]} serverResponses List of server's responses.
    * @return {UserSync[]} The user syncs which should be dropped.
    */
-  getUserSyncs(syncOptions, serverResponses, gdprConsent) {
-    if (config.getConfig('coppa') === true) {
+  getUserSyncs(syncOptions, serverResponses, gdprConsent, uspConsent) {
+    if (config.getConfig('coppa') === true || !ID_UTIL.hasPurpose1Consent({gdprConsent})) {
       return [];
     }
 
@@ -231,7 +231,8 @@ export const spec = {
           `?placement_id=${this.syncStore.placementId}` +
           (this.syncStore.pbsMode ? '&pbs=1' : '') +
           (typeof gdprApplies !== 'undefined' ? `&gdpr=${ID_UTIL.toBit(gdprApplies)}` : '') +
-          (consentString ? `&gdpr_consent=${consentString}` : '')
+          (consentString ? `&gdpr_consent=${consentString}` : '') +
+          (uspConsent ? `&us_privacy=${encodeURIComponent(uspConsent)}` : '')
       });
     } else if (syncOptions.pixelEnabled) {
       serverResponses.forEach(response => {
@@ -646,6 +647,16 @@ const ID_RAZR = {
 };
 
 const ID_UTIL = {
+  hasPurpose1Consent(bidderRequest) {
+    let result = true;
+    if (bidderRequest && bidderRequest.gdprConsent) {
+      if (bidderRequest.gdprConsent.gdprApplies && bidderRequest.gdprConsent.apiVersion === 2) {
+        result = !!(deepAccess(bidderRequest.gdprConsent, 'vendorData.purpose.consents.1') === true);
+      }
+    }
+    return result;
+  },
+
   toBit(val) {
     return val ? 1 : 0;
   },
