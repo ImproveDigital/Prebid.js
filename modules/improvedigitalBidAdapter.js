@@ -81,7 +81,6 @@ export const spec = {
    */
   buildRequests(bidRequests, bidderRequest) {
     const request = {
-      id: getUniqueIdentifierStr(),
       cur: [config.getConfig('currency.adServerCurrency') || 'USD'],
       ext: {
         improvedigital: {
@@ -252,49 +251,51 @@ export const spec = {
 registerBidder(spec);
 
 const ID_REQUEST = {
-  buildServerRequests(requestObject, bidRequests, bidderRequest) {
+  buildServerRequests(basicRequest, bidRequests, bidderRequest) {
     const globalPbsMode = config.getConfig('improvedigital.pbs') === true;
     const requests = [];
-    if (config.getConfig('improvedigital.singleRequest') === true) {
-      // Split imps between those going to the ad server and those going to PBS
-      const pbsImps = [];
-      const nonPbsImps = [];
-      bidRequests.map((bidRequest) => {
-        const pbsModeEnabled = this.isPbsModeEnabled(globalPbsMode, bidRequest.params);
-        const imp = this.buildImp(bidRequest, pbsModeEnabled)
-        pbsModeEnabled ? pbsImps.push(imp) : nonPbsImps.push(imp);
-      });
-      if (pbsImps.length) {
-        const request = deepClone(requestObject);
-        request.imp = pbsImps;
-        requests.push(this.formatRequest(request, bidderRequest, true));
+    const singleRequestMode = config.getConfig('improvedigital.singleRequest') === true;
+
+    const pbsImps = [];
+    const adServerImps = [];
+
+    function formatRequest(imps, transactionId, pbsMode) {
+      const request = deepClone(basicRequest);
+      request.imp = imps;
+      request.id = getUniqueIdentifierStr();
+      if (transactionId) {
+        deepSetValue(request, 'source.tid', transactionId);
       }
-      if (nonPbsImps.length) {
-        const request = deepClone(requestObject);
-        request.imp = nonPbsImps;
-        requests.push(this.formatRequest(request, bidderRequest, false));
+      return {
+        method: 'POST',
+        url: pbsMode ? PBS_URL : AD_SERVER_URL,
+        data: JSON.stringify(request),
+        bidderRequest
       }
-    } else {
-      bidRequests.map((bidRequest) => {
-        const request = deepClone(requestObject);
-        const pbsModeEnabled = this.isPbsModeEnabled(globalPbsMode, bidRequest.params);
-        request.id = bidRequest.bidId || getUniqueIdentifierStr();
-        request.imp = [this.buildImp(bidRequest, pbsModeEnabled)];
-        deepSetValue(request, 'source.tid', bidRequest.transactionId);
-        requests.push(this.formatRequest(request, bidderRequest, pbsModeEnabled));
-      });
+    };
+
+    bidRequests.map((bidRequest) => {
+      const pbsModeEnabled = this.isPbsModeEnabled(globalPbsMode, bidRequest.params);
+      const imp = this.buildImp(bidRequest, pbsModeEnabled);
+      if (singleRequestMode) {
+        pbsModeEnabled ? pbsImps.push(imp) : adServerImps.push(imp);
+      } else {
+        requests.push(formatRequest([imp], bidRequest.transactionId, pbsModeEnabled));
+      }
+    });
+
+    if (!singleRequestMode) {
+      return requests;
+    }
+    // In the single request mode, split imps between those going to the ad server and those going to PBS
+    if (pbsImps.length) {
+      requests.push(formatRequest(pbsImps, null, true));
+    }
+    if (adServerImps.length) {
+      requests.push(formatRequest(adServerImps, null, false));
     }
 
     return requests;
-  },
-
-  formatRequest(request, bidderRequest, pbsMode) {
-    return {
-      method: 'POST',
-      url: pbsMode ? PBS_URL : AD_SERVER_URL,
-      data: JSON.stringify(request),
-      bidderRequest
-    }
   },
 
   isPbsModeEnabled(globalPbsMode, bidParams) {
