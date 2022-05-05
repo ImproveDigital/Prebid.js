@@ -68,20 +68,26 @@ describe('Improve Digital Adapter Tests', function () {
 
   const nativeBidRequest = deepClone(simpleBidRequest);
   nativeBidRequest.mediaTypes = { native: {} };
+  nativeBidRequest.nativeParams = {
+    title: {required: true},
+    body: {required: true}
+  };
 
   const multiFormatBidRequest = deepClone(simpleBidRequest);
   multiFormatBidRequest.mediaTypes = {
     banner: {
       sizes: [[300, 250], [160, 600]]
     },
-    native: {
-      body: {
-        required: true
-      }
-    },
+    native: {},
     video: {
       context: 'outstream',
       playerSize: [640, 480]
+    }
+  };
+
+  multiFormatBidRequest.nativeParams = {
+    body: {
+      required: true
     }
   };
 
@@ -264,6 +270,28 @@ describe('Improve Digital Adapter Tests', function () {
           }
         }
       ]);
+    });
+
+    it('should make a well-formed native request', function () {
+      const payload = JSON.parse(spec.buildRequests([nativeBidRequest])[0].data);
+      expect(payload.imp[0].native).to.deep.equal({
+        ver: '1.2',
+        request: '{\"assets\":[{\"id\":0,\"required\":1,\"title\":{\"len\":140}},{\"id\":3,\"required\":1,\"data\":{\"type\":2}}]}'
+      });
+    });
+
+    it('should not make native request when nativeParams is undefined', function () {
+      const request = deepClone(nativeBidRequest);
+      delete request.nativeParams;
+      const payload = JSON.parse(spec.buildRequests([request])[0].data);
+      expect(payload.imp[0].native).to.not.exist;
+    });
+
+    it('should not make native request when no assets', function () {
+      const request = deepClone(nativeBidRequest);
+      request.nativeParams = {};
+      const payload = JSON.parse(spec.buildRequests([request])[0].data);
+      expect(payload.imp[0].native).to.not.exist;
     });
 
     it('should set placementKey and publisherId for smart tags', function () {
