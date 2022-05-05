@@ -217,7 +217,7 @@ export const spec = {
    * @return {UserSync[]} The user syncs which should be dropped.
    */
   getUserSyncs(syncOptions, serverResponses, gdprConsent, uspConsent) {
-    if (config.getConfig('coppa') === true || !ID_UTIL.hasPurpose1Consent({gdprConsent})) {
+    if (config.getConfig('coppa') === true || !ID_UTIL.hasPurpose1Consent(gdprConsent)) {
       return [];
     }
 
@@ -658,13 +658,10 @@ const ID_RAZR = {
 };
 
 const ID_UTIL = {
-  hasPurpose1Consent(bidderRequest) {
-    let result = true;
-    if (bidderRequest && bidderRequest.gdprConsent) {
-      if (bidderRequest.gdprConsent.gdprApplies && bidderRequest.gdprConsent.apiVersion === 2) {
-        result = !!(deepAccess(bidderRequest.gdprConsent, 'vendorData.purpose.consents.1') === true);
-      }
+  hasPurpose1Consent(gdprConsent) {
+    if (gdprConsent && gdprConsent.gdprApplies && gdprConsent.apiVersion === 2) {
+      return (deepAccess(gdprConsent, 'vendorData.purpose.consents.1') === true);
     }
-    return result;
+    return true;
   }
 };
