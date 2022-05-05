@@ -368,6 +368,18 @@ describe('Improve Digital Adapter Tests', function () {
       expect(payload.regs.ext.us_privacy).to.equal('1YYY');
     });
 
+    it('should add COPPA flag', function () {
+      getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub.withArgs('coppa').returns(true);
+      let bidRequest = Object.assign({}, simpleBidRequest);
+      let payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequestGdpr)[0].data);
+      expect(payload.regs.coppa).to.equal(1);
+      getConfigStub.withArgs('coppa').returns(false);
+      bidRequest = Object.assign({}, simpleBidRequest);
+      payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequestGdpr)[0].data);
+      expect(payload.regs.coppa).to.equal(0);
+    });
+
     it('should add referrer', function () {
       const bidRequest = Object.assign({}, simpleBidRequest);
       const request = spec.buildRequests([bidRequest], bidderRequestReferrer)[0];

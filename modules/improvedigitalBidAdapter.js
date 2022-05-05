@@ -104,7 +104,7 @@ export const spec = {
     // Coppa
     const coppa = config.getConfig('coppa');
     if (typeof coppa === 'boolean') {
-      deepSetValue(request, 'regs.coppa', ID_UTIL.toBit(coppa));
+      deepSetValue(request, 'regs.coppa', Number(coppa));
     }
 
     if (bidderRequest) {
@@ -112,7 +112,7 @@ export const spec = {
       const gdprConsent = deepAccess(bidderRequest, 'gdprConsent')
       if (gdprConsent) {
         if (typeof gdprConsent.gdprApplies === 'boolean') {
-          deepSetValue(request, 'regs.ext.gdpr', ID_UTIL.toBit(gdprConsent.gdprApplies));
+          deepSetValue(request, 'regs.ext.gdpr', Number(gdprConsent.gdprApplies));
         }
         deepSetValue(request, 'user.ext.consent', gdprConsent.consentString);
 
@@ -230,7 +230,7 @@ export const spec = {
         url: IFRAME_SYNC_URL +
           `?placement_id=${this.syncStore.placementId}` +
           (this.syncStore.pbsMode ? '&pbs=1' : '') +
-          (typeof gdprApplies !== 'undefined' ? `&gdpr=${ID_UTIL.toBit(gdprApplies)}` : '') +
+          (typeof gdprApplies === 'boolean' ? `&gdpr=${Number(gdprApplies)}` : '') +
           (consentString ? `&gdpr_consent=${consentString}` : '') +
           (uspConsent ? `&us_privacy=${encodeURIComponent(uspConsent)}` : '')
       });
@@ -308,7 +308,7 @@ const ID_REQUEST = {
   buildImp(bidRequest, pbsMode) {
     const imp = {
       id: getBidIdParameter('bidId', bidRequest) || getUniqueIdentifierStr(),
-      secure: ID_UTIL.toBit(window.location.protocol === 'https:'),
+      secure: Number(window.location.protocol === 'https:'),
     };
 
     // Floor
@@ -426,7 +426,7 @@ const ID_REQUEST = {
         const assetParams = nativeParams[i];
         const asset = {
           id: assetOrtbParams.id,
-          required: ID_UTIL.toBit(assetParams.required),
+          required: Number(assetParams.required),
         };
         switch (assetOrtbParams.assetType) {
           case NATIVE_DATA.ASSET_TYPES.TITLE:
@@ -665,9 +665,5 @@ const ID_UTIL = {
       }
     }
     return result;
-  },
-
-  toBit(val) {
-    return val ? 1 : 0;
-  },
+  }
 };
