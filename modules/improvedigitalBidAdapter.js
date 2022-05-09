@@ -82,7 +82,6 @@ export const spec = {
   buildRequests(bidRequests, bidderRequest) {
     const request = {
       cur: [config.getConfig('currency.adServerCurrency') || 'USD'],
-      test: 1,
       ext: {
         improvedigital: {
           sdk: {
