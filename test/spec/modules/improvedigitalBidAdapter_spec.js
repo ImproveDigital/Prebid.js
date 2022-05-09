@@ -1322,19 +1322,20 @@ describe('Improve Digital Adapter Tests', function () {
       expect(syncs).to.deep.equal([{ type: 'iframe', url: `${basicIframeSyncUrl}&us_privacy=${uspConsent}` }]);
     });
 
-    it('should return iframe user sync for the extend mode when iframe mode enabled', function () {
-      const expectedSync = [{ type: 'iframe', url: basicIframeSyncUrl + '&pbs=1' }];
+    it('should return iframe user sync for the adunit extend mode if iframe mode enabled', function () {
+      // buildRequests() sets spec.syncStore vars
       spec.buildRequests([simpleBidRequest, extendBidRequest]);
-      let syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, serverResponses);
-      expect(syncs).to.deep.equal(expectedSync);
+      const syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, serverResponses);
+      expect(syncs).to.deep.equal([{ type: 'iframe', url: basicIframeSyncUrl + '&pbs=1' }]);
+    });
 
-      // Set spec.syncStore vars
+    it('should return iframe user sync for the global extend mode if iframe mode enabled', function () {
       getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.extend').returns(true);
-      spec.buildRequests([simpleBidRequest], bidderRequest);
-
-      syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, serverResponses);
-      expect(syncs).to.deep.equal(expectedSync);
+      // buildRequests() sets spec.syncStore vars
+      spec.buildRequests([simpleBidRequest]);
+      const syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, serverResponses);
+      expect(syncs).to.deep.equal([{ type: 'iframe', url: basicIframeSyncUrl + '&pbs=1' }]);
     });
   });
 });
