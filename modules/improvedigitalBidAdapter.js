@@ -12,7 +12,7 @@ const BIDDER_CODE = 'improvedigital';
 const CREATIVE_TTL = 300;
 
 const AD_SERVER_URL = 'https://ad.360yield.com/pb';
-const PBS_URL = 'https://pbs.360yield.com/openrtb2/auction';
+const EXTEND_URL = 'https://pbs.360yield.com/openrtb2/auction';
 const IFRAME_SYNC_URL = 'https://hb.360yield.com/prebid-universal-creative/load-cookie.html';
 
 const VIDEO_PARAMS = {
@@ -60,7 +60,7 @@ export const spec = {
   gvlid: 253,
   aliases: ['id'],
   supportedMediaTypes: [BANNER, NATIVE, VIDEO],
-  syncStore: { pbsMode: false, placementId: null },
+  syncStore: { extendMode: false, placementId: null },
 
   /**
    * Determines whether or not the given bid request is valid.
@@ -82,6 +82,7 @@ export const spec = {
   buildRequests(bidRequests, bidderRequest) {
     const request = {
       cur: [config.getConfig('currency.adServerCurrency') || 'USD'],
+      test: 1,
       ext: {
         improvedigital: {
           sdk: {
@@ -222,13 +223,13 @@ export const spec = {
     }
 
     const syncs = [];
-    if ((this.syncStore.pbsMode || !syncOptions.pixelEnabled) && syncOptions.iframeEnabled) {
+    if ((this.syncStore.extendMode || !syncOptions.pixelEnabled) && syncOptions.iframeEnabled) {
       const { gdprApplies, consentString } = gdprConsent || {};
       syncs.push({
         type: 'iframe',
         url: IFRAME_SYNC_URL +
           `?placement_id=${this.syncStore.placementId}` +
-          (this.syncStore.pbsMode ? '&pbs=1' : '') +
+          (this.syncStore.extendMode ? '&pbs=1' : '') +
           (typeof gdprApplies === 'boolean' ? `&gdpr=${Number(gdprApplies)}` : '') +
           (consentString ? `&gdpr_consent=${consentString}` : '') +
           (uspConsent ? `&us_privacy=${encodeURIComponent(uspConsent)}` : '')
@@ -252,14 +253,14 @@ registerBidder(spec);
 
 const ID_REQUEST = {
   buildServerRequests(basicRequest, bidRequests, bidderRequest) {
-    const globalPbsMode = config.getConfig('improvedigital.pbs') === true;
+    const globalExtendMode = config.getConfig('improvedigital.extend') === true;
     const requests = [];
     const singleRequestMode = config.getConfig('improvedigital.singleRequest') === true;
 
-    const pbsImps = [];
+    const extendImps = [];
     const adServerImps = [];
 
-    function formatRequest(imps, transactionId, pbsMode) {
+    function formatRequest(imps, transactionId, extendMode) {
       const request = deepClone(basicRequest);
       request.imp = imps;
       request.id = getUniqueIdentifierStr();
@@ -268,28 +269,28 @@ const ID_REQUEST = {
       }
       return {
         method: 'POST',
-        url: pbsMode ? PBS_URL : AD_SERVER_URL,
+        url: extendMode ? EXTEND_URL : AD_SERVER_URL,
         data: JSON.stringify(request),
         bidderRequest
       }
     };
 
     bidRequests.map((bidRequest) => {
-      const pbsModeEnabled = this.isPbsModeEnabled(globalPbsMode, bidRequest.params);
-      const imp = this.buildImp(bidRequest, pbsModeEnabled);
+      const extendModeEnabled = this.isExtendModeEnabled(globalExtendMode, bidRequest.params);
+      const imp = this.buildImp(bidRequest, extendModeEnabled);
       if (singleRequestMode) {
-        pbsModeEnabled ? pbsImps.push(imp) : adServerImps.push(imp);
+        extendModeEnabled ? extendImps.push(imp) : adServerImps.push(imp);
       } else {
-        requests.push(formatRequest([imp], bidRequest.transactionId, pbsModeEnabled));
+        requests.push(formatRequest([imp], bidRequest.transactionId, extendModeEnabled));
       }
     });
 
     if (!singleRequestMode) {
       return requests;
     }
-    // In the single request mode, split imps between those going to the ad server and those going to PBS
-    if (pbsImps.length) {
-      requests.push(formatRequest(pbsImps, null, true));
+    // In the single request mode, split imps between those going to the ad server and those going to extend server
+    if (extendImps.length) {
+      requests.push(formatRequest(extendImps, null, true));
     }
     if (adServerImps.length) {
       requests.push(formatRequest(adServerImps, null, false));
@@ -298,15 +299,15 @@ const ID_REQUEST = {
     return requests;
   },
 
-  isPbsModeEnabled(globalPbsMode, bidParams) {
-    const pbsMode = typeof bidParams.pbs === 'boolean' ? bidParams.pbs : globalPbsMode;
-    if (pbsMode && !spec.syncStore.pbsMode) {
-      spec.syncStore.pbsMode = true;
+  isExtendModeEnabled(globalExtendMode, bidParams) {
+    const extendMode = typeof bidParams.extend === 'boolean' ? bidParams.extend : globalExtendMode;
+    if (extendMode && !spec.syncStore.extendMode) {
+      spec.syncStore.extendMode = true;
     }
-    return pbsMode;
+    return extendMode;
   },
 
-  buildImp(bidRequest, pbsMode) {
+  buildImp(bidRequest, extendMode) {
     const imp = {
       id: getBidIdParameter('bidId', bidRequest) || getUniqueIdentifierStr(),
       secure: Number(window.location.protocol === 'https:'),
@@ -320,11 +321,11 @@ const ID_REQUEST = {
       deepSetValue(imp, 'bidfloorcur', bidFloorCur ? bidFloorCur.toUpperCase() : undefined);
     }
 
-    const bidderParamsPath = pbsMode ? 'ext.prebid.bidder.improvedigital' : 'ext.bidder';
+    const bidderParamsPath = extendMode ? 'ext.prebid.bidder.improvedigital' : 'ext.bidder';
     const placementId = getBidIdParameter('placementId', bidRequest.params);
     if (placementId) {
       deepSetValue(imp, `${bidderParamsPath}.placementId`, placementId);
-      if (pbsMode) {
+      if (extendMode) {
         deepSetValue(imp, 'ext.prebid.storedrequest.id', '' + placementId);
       }
     } else {

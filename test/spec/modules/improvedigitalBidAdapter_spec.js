@@ -8,7 +8,7 @@ import { deepSetValue } from '../../../src/utils';
 describe('Improve Digital Adapter Tests', function () {
   const METHOD = 'POST';
   const AD_SERVER_URL = 'https://ad.360yield.com/pb';
-  const PBS_URL = 'https://pbs.360yield.com/openrtb2/auction';
+  const EXTEND_URL = 'https://pbs.360yield.com/openrtb2/auction';
   const IFRAME_SYNC_URL = 'https://hb.360yield.com/prebid-universal-creative/load-cookie.html';
   const INSTREAM_TYPE = 1;
   const OUTSTREAM_TYPE = 3;
@@ -31,8 +31,8 @@ describe('Improve Digital Adapter Tests', function () {
     sizes: [[300, 250], [160, 600]]
   };
 
-  const pbsBidRequest = deepClone(simpleBidRequest);
-  pbsBidRequest.params.pbs = true;
+  const extendBidRequest = deepClone(simpleBidRequest);
+  extendBidRequest.params.extend = true;
 
   const videoParams = {
     skip: 1,
@@ -105,8 +105,8 @@ describe('Improve Digital Adapter Tests', function () {
     bids: [simpleBidRequest]
   };
 
-  const pbsBidderRequest = {
-    bids: [pbsBidRequest]
+  const extendBidderRequest = {
+    bids: [extendBidRequest]
   };
 
   const instreamBidderRequest = {
@@ -592,10 +592,10 @@ describe('Improve Digital Adapter Tests', function () {
     it('should create one request per endpoint in a single request mode', function () {
       getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.singleRequest').returns(true);
-      const requests = spec.buildRequests([ pbsBidRequest, simpleBidRequest, instreamBidRequest ], bidderRequest);
+      const requests = spec.buildRequests([ extendBidRequest, simpleBidRequest, instreamBidRequest ], bidderRequest);
       expect(requests).to.be.an('array');
       expect(requests.length).to.equal(2);
-      expect(requests[0].url).to.equal(PBS_URL);
+      expect(requests[0].url).to.equal(EXTEND_URL);
       expect(requests[1].url).to.equal(AD_SERVER_URL);
       const adServerRequest = JSON.parse(requests[1].data);
       expect(adServerRequest.imp.length).to.equal(2);
@@ -748,17 +748,17 @@ describe('Improve Digital Adapter Tests', function () {
       expect(payload.app).does.not.exist;
     });
 
-    it('should set pbs params when pbs mode enabled from global configuration', function () {
+    it('should set extend params when extend mode enabled from global configuration', function () {
       getConfigStub = sinon.stub(config, 'getConfig');
       const bannerRequest = deepClone(simpleBidRequest);
       const keyValues = { testKey: [ 'testValue' ] };
       bannerRequest.params.keyValues = keyValues;
 
-      getConfigStub.withArgs('improvedigital.pbs').returns(true);
+      getConfigStub.withArgs('improvedigital.extend').returns(true);
       const requests = spec.buildRequests([bannerRequest, instreamBidRequest], bidderRequest);
       expect(requests[0].method).to.equal(METHOD);
-      expect(requests[0].url).to.equal(PBS_URL);
-      expect(requests[1].url).to.equal(PBS_URL);
+      expect(requests[0].url).to.equal(EXTEND_URL);
+      expect(requests[1].url).to.equal(EXTEND_URL);
       // banner
       let payload = JSON.parse(requests[0].data);
       expect(payload.imp[0].ext.bidder).to.not.exist;
@@ -774,27 +774,27 @@ describe('Improve Digital Adapter Tests', function () {
       expect(payload.imp[0].ext.prebid.storedrequest.id).to.equal('123456');
     });
 
-    it('should set pbs url when pbs mode enabled in adunit params', function () {
-      const bidRequest = deepClone(pbsBidRequest);
+    it('should set extend url when extend mode enabled in adunit params', function () {
+      const bidRequest = deepClone(extendBidRequest);
       let request = spec.buildRequests([bidRequest], { bids: [bidRequest] })[0];
-      expect(request.url).to.equal(PBS_URL);
+      expect(request.url).to.equal(EXTEND_URL);
 
       getConfigStub = sinon.stub(config, 'getConfig');
 
       // adunit param takes precedence over the global config
-      getConfigStub.withArgs('improvedigital.pbs').returns(false);
+      getConfigStub.withArgs('improvedigital.extend').returns(false);
       request = spec.buildRequests([bidRequest], { bids: [bidRequest] })[0];
-      expect(request.url).to.equal(PBS_URL);
+      expect(request.url).to.equal(EXTEND_URL);
 
-      bidRequest.params.pbs = false;
-      getConfigStub.withArgs('improvedigital.pbs').returns(true);
+      bidRequest.params.extend = false;
+      getConfigStub.withArgs('improvedigital.extend').returns(true);
       request = spec.buildRequests([bidRequest], { bids: [bidRequest] })[0];
       expect(request.url).to.equal(AD_SERVER_URL);
 
       const requests = spec.buildRequests([bidRequest, instreamBidRequest], { bids: [bidRequest, instreamBidRequest] });
       expect(requests.length).to.equal(2);
       expect(requests[0].url).to.equal(AD_SERVER_URL);
-      expect(requests[1].url).to.equal(PBS_URL);
+      expect(requests[1].url).to.equal(EXTEND_URL);
     });
   });
 
@@ -1257,7 +1257,7 @@ describe('Improve Digital Adapter Tests', function () {
     let getConfigStub = null;
 
     beforeEach(function () {
-      spec.syncStore = { pbsMode: false, placementId: null };
+      spec.syncStore = { extendMode: false, placementId: null };
     });
 
     afterEach(function () {
@@ -1291,10 +1291,10 @@ describe('Improve Digital Adapter Tests', function () {
       expect(syncs).to.deep.equal(pixelSyncs);
     });
 
-    it('should return pixel user syncs for pbs mode when iframe mode disabled', function () {
+    it('should return pixel user syncs for extend mode when iframe mode disabled', function () {
       // Set spec.syncStore vars
       getConfigStub = sinon.stub(config, 'getConfig');
-      getConfigStub.withArgs('improvedigital.pbs').returns(true);
+      getConfigStub.withArgs('improvedigital.extend').returns(true);
       spec.buildRequests([simpleBidRequest], bidderRequest);
 
       const syncs = spec.getUserSyncs({ pixelEnabled: true }, serverResponses);
@@ -1322,15 +1322,15 @@ describe('Improve Digital Adapter Tests', function () {
       expect(syncs).to.deep.equal([{ type: 'iframe', url: `${basicIframeSyncUrl}&us_privacy=${uspConsent}` }]);
     });
 
-    it('should return iframe user sync for the pbs mode when iframe mode enabled', function () {
+    it('should return iframe user sync for the extend mode when iframe mode enabled', function () {
       const expectedSync = [{ type: 'iframe', url: basicIframeSyncUrl + '&pbs=1' }];
-      spec.buildRequests([simpleBidRequest, pbsBidRequest]);
+      spec.buildRequests([simpleBidRequest, extendBidRequest]);
       let syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, serverResponses);
       expect(syncs).to.deep.equal(expectedSync);
 
       // Set spec.syncStore vars
       getConfigStub = sinon.stub(config, 'getConfig');
-      getConfigStub.withArgs('improvedigital.pbs').returns(true);
+      getConfigStub.withArgs('improvedigital.extend').returns(true);
       spec.buildRequests([simpleBidRequest], bidderRequest);
 
       syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, serverResponses);
