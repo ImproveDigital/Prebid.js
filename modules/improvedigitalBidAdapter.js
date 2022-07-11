@@ -367,7 +367,7 @@ const ID_REQUEST = {
       imp.banner = this.buildBannerRequest(bidRequest);
     }
 
-    if (deepAccess(bidRequest, 'mediaTypes.native')) {
+    if (FEATURES.NATIVE && deepAccess(bidRequest, 'mediaTypes.native')) {
       const nativeImp = this.buildNativeRequest(bidRequest);
       if (nativeImp) {
         imp.native = nativeImp;
@@ -430,6 +430,10 @@ const ID_REQUEST = {
       return null;
     }
     const request = {
+      plcmttype: 1,
+      eventtrackers: [
+        {event: 1, methods: [1, 2]}
+      ],
       assets: [],
     }
     for (let i of Object.keys(nativeParams)) {
@@ -518,14 +522,14 @@ const ID_RESPONSE = {
         this.buildVideoAd(bid, bidRequest, bidResponse);
       } else if (deepAccess(bidRequest, 'mediaTypes.banner')) {
         this.buildBannerAd(bid, bidRequest, bidResponse);
-      } else if (deepAccess(bidRequest, 'mediaTypes.native')) {
+      } else if (FEATURES.NATIVE && deepAccess(bidRequest, 'mediaTypes.native')) {
         this.buildNativeAd(bid, bidRequest, bidResponse)
       }
     } else {
       // Detect media type for multi-format response
       if (bidResponse.adm.search(/^(<\?xml|<vast)/i) !== -1) {
         this.buildVideoAd(bid, bidRequest, bidResponse);
-      } else if (bidResponse.adm[0] === '{') {
+      } else if (FEATURES.NATIVE && bidResponse.adm[0] === '{') {
         this.buildNativeAd(bid, bidRequest, bidResponse);
       } else {
         this.buildBannerAd(bid, bidRequest, bidResponse);
