@@ -18,6 +18,7 @@ import {BANNER, NATIVE, VIDEO} from '../src/mediaTypes.js';
 import {Renderer} from '../src/Renderer.js';
 import {createEidsArray} from './userId/eids.js';
 import {hasPurpose1Consent} from '../src/utils/gpdr.js';
+import {loadExternalScript} from '../src/adloader.js';
 
 const BIDDER_CODE = 'improvedigital';
 const CREATIVE_TTL = 300;
@@ -208,7 +209,13 @@ export const spec = {
 
         ID_RESPONSE.buildAd(bid, bidRequest, bidObject);
 
-        ID_RAZR.addBidData({
+        ID_RAZR.forwardBid({
+          bidRequest,
+          bid
+        });
+
+        // to be phased out:
+        ID_RAZR_LEGACY.addBidData({
           bidRequest,
           bid
         });
@@ -636,7 +643,66 @@ const ID_OUTSTREAM = {
 };
 
 const ID_RAZR = {
-  RENDERER_URL: 'https://razr.improvedigital.com/renderer.js',
+  RENDERER_URL: 'https://cdn.360yield.com/razr/tag.js',
+
+  forwardBid({bidRequest, bid}) {
+    if (bid.mediaType !== BANNER) {
+      return;
+    }
+
+    const cfg = {
+      prebid: {
+        bidRequest,
+        bid
+      }
+    };
+
+    const cfgStr = JSON.stringify(cfg).replace(/<\/script>/g, '\\x3C/script>');
+    const s = `<script>window.__razr_config = ${cfgStr};</script>`;
+    bid.ad = bid.ad.replace(/<body[^>]*>/, match => match + s);
+
+    this.installListener();
+  },
+
+  installListener() {
+    if (this._listenerInstalled) {
+      return;
+    }
+
+    window.addEventListener('message', function(e) {
+      const data = e.data && e.data.razr && e.data.razr.load;
+      if (!data) {
+        return;
+      }
+
+      if (e.source) {
+        data.source = e.source;
+        if (data.id) {
+          e.source.postMessage({
+            razr: {
+              id: data.id
+            }
+          }, '*');
+        }
+      }
+
+      const ns = window.razr = window.razr || {};
+      ns.q = ns.q || [];
+      ns.q.push(data);
+
+      if (!ns.loaded) {
+        loadExternalScript(ID_RAZR.RENDERER_URL, BIDDER_CODE);
+      }
+    });
+
+    this._listenerInstalled = true;
+  }
+};
+
+// to be phased out:
+const ID_RAZR_LEGACY = {
+  RENDERER_URL: 'https://cdn.360yield.com/razr/legacy/renderer.js',
+
   addBidData({bid, bidRequest}) {
     if (this.isValidBid(bid)) {
       bid.renderer = Renderer.install({
@@ -648,7 +714,7 @@ const ID_RAZR = {
   },
 
   isValidBid(bid) {
-    return bid && /razr:\/\//.test(bid.ad);
+    return bid && /razr:\/\//.test(bid.ad) && !/data-razr-uri/.test(bid.ad);
   },
 
   render(bid) {
