@@ -670,7 +670,7 @@ const ID_RAZR = {
     }
 
     window.addEventListener('message', function(e) {
-      const data = e.data && e.data.razr && e.data.razr.load;
+      const data = e.data?.razr?.load;
       if (!data) {
         return;
       }
