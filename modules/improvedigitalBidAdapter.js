@@ -214,12 +214,6 @@ export const spec = {
           bid
         });
 
-        // to be phased out:
-        ID_RAZR_LEGACY.addBidData({
-          bidRequest,
-          bid
-        });
-
         bids.push(bid);
       });
     });
@@ -696,43 +690,5 @@ const ID_RAZR = {
     });
 
     this._listenerInstalled = true;
-  }
-};
-
-// to be phased out:
-const ID_RAZR_LEGACY = {
-  RENDERER_URL: 'https://cdn.360yield.com/razr/legacy/renderer.js',
-
-  addBidData({bid, bidRequest}) {
-    if (this.isValidBid(bid)) {
-      bid.renderer = Renderer.install({
-        url: this.RENDERER_URL,
-        config: {bidRequest}
-      });
-      bid.renderer.setRender(this.render);
-    }
-  },
-
-  isValidBid(bid) {
-    return bid && /razr:\/\//.test(bid.ad) && !/data-razr-uri/.test(bid.ad);
-  },
-
-  render(bid) {
-    const {bidRequest} = bid.renderer.getConfig();
-
-    const payload = {
-      type: 'prebid',
-      bidRequest,
-      bid,
-      config: mergeDeep(
-        {},
-        config.getConfig('improvedigital.rendererConfig'),
-        deepAccess(bidRequest, 'params.rendererConfig')
-      )
-    };
-
-    const razr = window.razr = window.razr || {};
-    razr.queue = razr.queue || [];
-    razr.queue.push(payload);
   }
 };
