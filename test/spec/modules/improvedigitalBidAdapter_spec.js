@@ -810,6 +810,57 @@ describe('Improve Digital Adapter Tests', function () {
       expect(requests[0].url).to.equal(AD_SERVER_URL);
       expect(requests[1].url).to.equal(EXTEND_URL);
     });
+
+    it('should add ConsentedProvidersSettings when extend mode enabled', function () {
+      const bidRequest = deepClone(extendBidRequest);
+      const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequestGdpr)[0].data);
+      expect(payload.regs.ext.gdpr).to.exist.and.to.equal(1);
+      expect(payload.user.ext.consent).to.equal('CONSENT');
+      expect(payload.user.ext.ConsentedProvidersSettings.consented_providers).to.exist.and.to.deep.equal('1~1.35.41.101');
+      expect(payload.user.ext.consented_providers_settings).to.not.exist;
+    });
+
+    it('should not add ConsentedProvidersSettings when extend mode disabled', function () {
+      const bidRequest = deepClone(simpleBidRequest);
+      const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequestGdpr)[0].data);
+      expect(payload.regs.ext.gdpr).to.exist.and.to.equal(1);
+      expect(payload.user.ext.consent).to.equal('CONSENT');
+      expect(payload.user.ext.ConsentedProvidersSettings).to.not.exist;
+      expect(payload.user.ext.consented_providers_settings.consented_providers).to.exist.and.to.deep.equal([1, 35, 41, 101]);
+    });
+
+    it('should add publisherId to request URL when available in request params', function() {
+      const bidRequest = deepClone(simpleBidRequest);
+      bidRequest.params.publisherId = 1000;
+      let request = spec.buildRequests([bidRequest], bidderRequest)[0];
+      expect(request).to.be.an('object');
+      expect(request.method).to.equal(METHOD);
+      expect(request.url).to.equal('https://ad.360yield.com/1000/pb');
+      expect(request.bidderRequest).to.deep.equal(bidderRequest);
+
+      const bidRequest2 = deepClone(simpleBidRequest)
+      bidRequest2.params.publisherId = 1002;
+      getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub.withArgs('improvedigital.singleRequest').returns(true);
+      request = spec.buildRequests([bidRequest, bidRequest2], bidderRequest)[0];
+      expect(request.url).to.equal('https://ad.360yield.com/1002/pb');
+
+      const consent = deepClone(gdprConsent);
+      deepSetValue(consent, 'vendorData.purpose.consents.1', false);
+      const bidderRequestWithConsent = deepClone(bidderRequest);
+      bidderRequestWithConsent.gdprConsent = consent;
+      request = spec.buildRequests([bidRequest], bidderRequestWithConsent)[0];
+      expect(request.url).to.equal('https://ad.360yield-basic.com/1000/pb');
+
+      deepSetValue(consent, 'vendorData.purpose.consents.1', true);
+      bidderRequestWithConsent.gdprConsent = consent;
+      request = spec.buildRequests([bidRequest], bidderRequestWithConsent)[0];
+      expect(request.url).to.equal('https://ad.360yield.com/1000/pb');
+
+      delete bidRequest.params.publisherId;
+      request = spec.buildRequests([bidRequest], bidderRequestWithConsent)[0];
+      expect(request.url).to.equal('https://ad.360yield.com/pb');
+    });
   });
 
   const serverResponse = {
@@ -1346,6 +1397,17 @@ describe('Improve Digital Adapter Tests', function () {
       spec.buildRequests([simpleBidRequest], {});
       const syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, serverResponses);
       expect(syncs).to.deep.equal([{ type: 'iframe', url: basicIframeSyncUrl + '&pbs=1' }]);
+    });
+
+    it('should add bidders to iframe user sync url', function () {
+      getConfigStub = sinon.stub(config, 'getConfig');
+      getConfigStub.withArgs('improvedigital.extend').returns(true);
+      spec.buildRequests([simpleBidRequest], {});
+      const rawResponse = deepClone(serverResponse)
+      deepSetValue(rawResponse, 'body.ext.responsetimemillis', {a: 1, b: 1, c: 1, d: 1, e: 1})
+      let syncs = spec.getUserSyncs({ iframeEnabled: true, pixelEnabled: true }, [rawResponse]);
+      let url = basicIframeSyncUrl + '&pbs=1' + '&bidders=a,b,c,d,e'
+      expect(syncs).to.deep.equal([{ type: 'iframe', url }]);
     });
   });
 });
