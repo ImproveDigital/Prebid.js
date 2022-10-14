@@ -840,10 +840,25 @@ describe('Improve Digital Adapter Tests', function () {
 
       const bidRequest2 = deepClone(simpleBidRequest)
       bidRequest2.params.publisherId = 1002;
+
+      const request1 = spec.buildRequests([bidRequest, bidRequest2], bidderRequest)[0];
+      expect(request1.url).to.equal('https://ad.360yield.com/1000/pb');
+      const request2 = spec.buildRequests([bidRequest, bidRequest2], bidderRequest)[1];
+      expect(request2.url).to.equal('https://ad.360yield.com/1002/pb');
+
+      // Enable single request mode
       getConfigStub = sinon.stub(config, 'getConfig');
       getConfigStub.withArgs('improvedigital.singleRequest').returns(true);
+      try {
+        spec.buildRequests([bidRequest, bidRequest2], bidderRequest)[0];
+      } catch (e) {
+        expect(e.name).to.exist.equal('Error')
+        expect(e.message).to.exist.equal(`All placements must have the same publisherId. Please check your 'params.publisherId'`)
+      }
+
+      bidRequest2.params.publisherId = null;
       request = spec.buildRequests([bidRequest, bidRequest2], bidderRequest)[0];
-      expect(request.url).to.equal('https://ad.360yield.com/1002/pb');
+      expect(request.url).to.equal('https://ad.360yield.com/1000/pb');
 
       const consent = deepClone(gdprConsent);
       deepSetValue(consent, 'vendorData.purpose.consents.1', false);

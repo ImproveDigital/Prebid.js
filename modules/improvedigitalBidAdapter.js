@@ -331,11 +331,15 @@ const ID_REQUEST = {
       const bidParam = bidRequest.params;
       const extendModeEnabled = this.isExtendModeEnabled(globalExtendMode, bidParam);
       const imp = this.buildImp(bidRequest, extendModeEnabled);
-      publisherId = bidParam?.publisherId;
       if (singleRequestMode) {
+        if (!publisherId) {
+          publisherId = bidParam?.publisherId;
+        } else if (publisherId && bidParam?.publisherId && publisherId !== bidParam?.publisherId) {
+          throw new Error(`All placements must have the same publisherId. Please check your 'params.publisherId'`);
+        }
         extendModeEnabled ? extendImps.push(imp) : adServerImps.push(imp);
       } else {
-        requests.push(formatRequest([imp], {transactionId: bidRequest.transactionId, publisherId}, extendModeEnabled));
+        requests.push(formatRequest([imp], {transactionId: bidRequest.transactionId, publisherId: bidParam?.publisherId}, extendModeEnabled));
       }
     });
 
