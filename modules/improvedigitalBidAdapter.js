@@ -272,25 +272,19 @@ const ID_REQUEST = {
     const extendImps = [];
     const adServerImps = [];
 
-    function setAdditionalConsent(request, extendMode) {
-      if (bidderRequest?.gdprConsent?.addtlConsent) {
-        if (extendMode) {
-          deepSetValue(request, 'user.ext.ConsentedProvidersSettings.consented_providers', bidderRequest.gdprConsent.addtlConsent)
-        } else {
-          // Additional Consent String
-          const additionalConsent = bidderRequest.gdprConsent.addtlConsent;
-          if (additionalConsent && additionalConsent.indexOf('~') !== -1) {
-            // Google Ad Tech Provider IDs
-            const atpIds = additionalConsent.substring(additionalConsent.indexOf('~') + 1);
-            if (atpIds) {
-              deepSetValue(
-                request,
-                'user.ext.consented_providers_settings.consented_providers',
-                atpIds.split('.').map(id => parseInt(id, 10))
-              );
-            }
-          }
-        }
+    function setAdditionalConsent(request) {
+      const additionalConsent = bidderRequest?.gdprConsent?.addtlConsent;
+      if (!additionalConsent) {
+        return;
+      }
+      deepSetValue(request, 'user.ext.ConsentedProvidersSettings.consented_providers', additionalConsent)
+      const atpIds = additionalConsent.substring(additionalConsent.indexOf('~') + 1);
+      if (atpIds) {
+        deepSetValue(
+          request,
+          'user.ext.consented_providers_settings.consented_providers',
+          atpIds.split('.').map(id => parseInt(id, 10))
+        );
       }
     }
 
@@ -313,7 +307,7 @@ const ID_REQUEST = {
       const request = deepClone(basicRequest);
       request.imp = imps;
       request.id = getUniqueIdentifierStr();
-      setAdditionalConsent(request, extendMode);
+      setAdditionalConsent(request);
       if (transactionId) {
         deepSetValue(request, 'source.tid', transactionId);
       }
@@ -328,18 +322,18 @@ const ID_REQUEST = {
 
     let publisherId = null;
     bidRequests.map((bidRequest) => {
-      const bidParam = bidRequest.params;
-      const extendModeEnabled = this.isExtendModeEnabled(globalExtendMode, bidParam);
+      const bidParams = bidRequest.params;
+      const extendModeEnabled = this.isExtendModeEnabled(globalExtendMode, bidParams);
       const imp = this.buildImp(bidRequest, extendModeEnabled);
       if (singleRequestMode) {
         if (!publisherId) {
-          publisherId = bidParam?.publisherId;
-        } else if (publisherId && bidParam?.publisherId && publisherId !== bidParam?.publisherId) {
-          throw new Error(`All placements must have the same publisherId. Please check your 'params.publisherId'`);
+          publisherId = bidParams?.publisherId;
+        } else if (publisherId && bidParams?.publisherId && publisherId !== bidParams?.publisherId) {
+          throw new Error(`All Improve Digital placements in a single call must have the same publisherId. Please check your 'params.publisherId' or turn off the single request mode.`);
         }
         extendModeEnabled ? extendImps.push(imp) : adServerImps.push(imp);
       } else {
-        requests.push(formatRequest([imp], {transactionId: bidRequest.transactionId, publisherId: bidParam?.publisherId}, extendModeEnabled));
+        requests.push(formatRequest([imp], {transactionId: bidRequest.transactionId, publisherId: bidParams?.publisherId}, extendModeEnabled));
       }
     });
 

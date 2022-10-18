@@ -817,15 +817,6 @@ describe('Improve Digital Adapter Tests', function () {
       expect(payload.regs.ext.gdpr).to.exist.and.to.equal(1);
       expect(payload.user.ext.consent).to.equal('CONSENT');
       expect(payload.user.ext.ConsentedProvidersSettings.consented_providers).to.exist.and.to.deep.equal('1~1.35.41.101');
-      expect(payload.user.ext.consented_providers_settings).to.not.exist;
-    });
-
-    it('should not add ConsentedProvidersSettings when extend mode disabled', function () {
-      const bidRequest = deepClone(simpleBidRequest);
-      const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequestGdpr)[0].data);
-      expect(payload.regs.ext.gdpr).to.exist.and.to.equal(1);
-      expect(payload.user.ext.consent).to.equal('CONSENT');
-      expect(payload.user.ext.ConsentedProvidersSettings).to.not.exist;
       expect(payload.user.ext.consented_providers_settings.consented_providers).to.exist.and.to.deep.equal([1, 35, 41, 101]);
     });
 
@@ -853,7 +844,7 @@ describe('Improve Digital Adapter Tests', function () {
         spec.buildRequests([bidRequest, bidRequest2], bidderRequest)[0];
       } catch (e) {
         expect(e.name).to.exist.equal('Error')
-        expect(e.message).to.exist.equal(`All placements must have the same publisherId. Please check your 'params.publisherId'`)
+        expect(e.message).to.exist.equal(`All Improve Digital placements in a single call must have the same publisherId. Please check your 'params.publisherId' or turn off the single request mode.`)
       }
 
       bidRequest2.params.publisherId = null;
