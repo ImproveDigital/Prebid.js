@@ -272,19 +272,25 @@ const ID_REQUEST = {
     const extendImps = [];
     const adServerImps = [];
 
-    function setAdditionalConsent(request) {
-      const additionalConsent = bidderRequest?.gdprConsent?.addtlConsent;
-      if (!additionalConsent) {
-        return;
-      }
-      deepSetValue(request, 'user.ext.ConsentedProvidersSettings.consented_providers', additionalConsent)
-      const atpIds = additionalConsent.substring(additionalConsent.indexOf('~') + 1);
-      if (atpIds) {
-        deepSetValue(
-          request,
-          'user.ext.consented_providers_settings.consented_providers',
-          atpIds.split('.').map(id => parseInt(id, 10))
-        );
+    function setAdditionalConsent(request, extendMode) {
+      if (bidderRequest?.gdprConsent?.addtlConsent) {
+        if (extendMode) {
+          deepSetValue(request, 'user.ext.ConsentedProvidersSettings.consented_providers', bidderRequest.gdprConsent.addtlConsent)
+        } else {
+          // Additional Consent String
+          const additionalConsent = bidderRequest.gdprConsent.addtlConsent;
+          if (additionalConsent && additionalConsent.indexOf('~') !== -1) {
+            // Google Ad Tech Provider IDs
+            const atpIds = additionalConsent.substring(additionalConsent.indexOf('~') + 1);
+            if (atpIds) {
+              deepSetValue(
+                request,
+                'user.ext.consented_providers_settings.consented_providers',
+                atpIds.split('.').map(id => parseInt(id, 10))
+              );
+            }
+          }
+        }
       }
     }
 
