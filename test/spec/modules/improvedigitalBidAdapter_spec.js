@@ -7,8 +7,11 @@ import { deepSetValue } from '../../../src/utils';
 
 describe('Improve Digital Adapter Tests', function () {
   const METHOD = 'POST';
-  const AD_SERVER_URL = 'https://ad.360yield.com/pb';
-  const BASIC_ADS_URL = 'https://ad.360yield-basic.com/pb';
+  const AD_SERVER_BASE_URL = 'https://ad.360yield.com';
+  const BASIC_ADS_BASE_URL = 'https://ad.360yield-basic.com';
+  const PB_ENDPOINT = 'pb';
+  const AD_SERVER_URL = `${AD_SERVER_BASE_URL}/${PB_ENDPOINT}`;
+  const BASIC_ADS_URL = `${BASIC_ADS_BASE_URL}/${PB_ENDPOINT}`;
   const EXTEND_URL = 'https://pbs.360yield.com/openrtb2/auction';
   const IFRAME_SYNC_URL = 'https://hb.360yield.com/prebid-universal-creative/load-cookie.html';
   const INSTREAM_TYPE = 1;
@@ -374,6 +377,7 @@ describe('Improve Digital Adapter Tests', function () {
       const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequestGdpr)[0].data);
       expect(payload.regs.ext.gdpr).to.exist.and.to.equal(1);
       expect(payload.user.ext.consent).to.equal('CONSENT');
+      expect(payload.user.ext.ConsentedProvidersSettings).to.not.exist;
       expect(payload.user.ext.consented_providers_settings.consented_providers).to.exist.and.to.deep.equal([1, 35, 41, 101]);
     });
 
@@ -382,6 +386,15 @@ describe('Improve Digital Adapter Tests', function () {
       bidderRequestGdprEmptyAddtl.gdprConsent.addtlConsent = '1~';
       const bidRequest = Object.assign({}, simpleBidRequest);
       const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequestGdprEmptyAddtl)[0].data);
+      expect(payload.user.ext.consented_providers_settings).to.not.exist;
+    });
+
+    it('should add ConsentedProvidersSettings when extend mode enabled', function () {
+      const bidRequest = deepClone(extendBidRequest);
+      const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequestGdpr)[0].data);
+      expect(payload.regs.ext.gdpr).to.exist.and.to.equal(1);
+      expect(payload.user.ext.consent).to.equal('CONSENT');
+      expect(payload.user.ext.ConsentedProvidersSettings.consented_providers).to.exist.and.to.equal('1~1.35.41.101');
       expect(payload.user.ext.consented_providers_settings).to.not.exist;
     });
 
@@ -811,40 +824,32 @@ describe('Improve Digital Adapter Tests', function () {
       expect(requests[1].url).to.equal(EXTEND_URL);
     });
 
-    it('should add ConsentedProvidersSettings when extend mode enabled', function () {
-      const bidRequest = deepClone(extendBidRequest);
-      const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequestGdpr)[0].data);
-      expect(payload.regs.ext.gdpr).to.exist.and.to.equal(1);
-      expect(payload.user.ext.consent).to.equal('CONSENT');
-      expect(payload.user.ext.ConsentedProvidersSettings.consented_providers).to.exist.and.to.deep.equal('1~1.35.41.101');
-      expect(payload.user.ext.consented_providers_settings).to.not.exist;
-    });
-
-    it('should not add ConsentedProvidersSettings when extend mode disabled', function () {
-      const bidRequest = deepClone(simpleBidRequest);
-      const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequestGdpr)[0].data);
-      expect(payload.regs.ext.gdpr).to.exist.and.to.equal(1);
-      expect(payload.user.ext.consent).to.equal('CONSENT');
-      expect(payload.user.ext.ConsentedProvidersSettings).to.not.exist;
-      expect(payload.user.ext.consented_providers_settings.consented_providers).to.exist.and.to.deep.equal([1, 35, 41, 101]);
-    });
-
     it('should add publisherId to request URL when available in request params', function() {
+      function formatPublisherUrl(baseUrl, publisherId) {
+        return `${baseUrl}/${publisherId}/${PB_ENDPOINT}`;
+      }
       const bidRequest = deepClone(simpleBidRequest);
       bidRequest.params.publisherId = 1000;
       let request = spec.buildRequests([bidRequest], bidderRequest)[0];
       expect(request).to.be.an('object');
-      expect(request.method).to.equal(METHOD);
-      expect(request.url).to.equal('https://ad.360yield.com/1000/pb');
-      expect(request.bidderRequest).to.deep.equal(bidderRequest);
+      sinon.assert.match(request, {
+        method: METHOD,
+        url: formatPublisherUrl(AD_SERVER_BASE_URL, 1000),
+        bidderRequest
+      });
 
       const bidRequest2 = deepClone(simpleBidRequest)
       bidRequest2.params.publisherId = 1002;
 
+      const bidRequest3 = deepClone(extendBidRequest)
+      bidRequest3.params.publisherId = 1002;
+
       const request1 = spec.buildRequests([bidRequest, bidRequest2], bidderRequest)[0];
-      expect(request1.url).to.equal('https://ad.360yield.com/1000/pb');
+      expect(request1.url).to.equal(formatPublisherUrl(AD_SERVER_BASE_URL, 1000));
       const request2 = spec.buildRequests([bidRequest, bidRequest2], bidderRequest)[1];
-      expect(request2.url).to.equal('https://ad.360yield.com/1002/pb');
+      expect(request2.url).to.equal(formatPublisherUrl(AD_SERVER_BASE_URL, 1002));
+      const request3 = spec.buildRequests([bidRequest, bidRequest3], bidderRequest)[1];
+      expect(request3.url).to.equal(EXTEND_URL);
 
       // Enable single request mode
       getConfigStub = sinon.stub(config, 'getConfig');
@@ -858,23 +863,23 @@ describe('Improve Digital Adapter Tests', function () {
 
       bidRequest2.params.publisherId = null;
       request = spec.buildRequests([bidRequest, bidRequest2], bidderRequest)[0];
-      expect(request.url).to.equal('https://ad.360yield.com/1000/pb');
+      expect(request.url).to.equal(formatPublisherUrl(AD_SERVER_BASE_URL, 1000));
 
       const consent = deepClone(gdprConsent);
       deepSetValue(consent, 'vendorData.purpose.consents.1', false);
       const bidderRequestWithConsent = deepClone(bidderRequest);
       bidderRequestWithConsent.gdprConsent = consent;
       request = spec.buildRequests([bidRequest], bidderRequestWithConsent)[0];
-      expect(request.url).to.equal('https://ad.360yield-basic.com/1000/pb');
+      expect(request.url).to.equal(formatPublisherUrl(BASIC_ADS_BASE_URL, 1000));
 
       deepSetValue(consent, 'vendorData.purpose.consents.1', true);
       bidderRequestWithConsent.gdprConsent = consent;
       request = spec.buildRequests([bidRequest], bidderRequestWithConsent)[0];
-      expect(request.url).to.equal('https://ad.360yield.com/1000/pb');
+      expect(request.url).to.equal(formatPublisherUrl(AD_SERVER_BASE_URL, 1000));
 
       delete bidRequest.params.publisherId;
       request = spec.buildRequests([bidRequest], bidderRequestWithConsent)[0];
-      expect(request.url).to.equal('https://ad.360yield.com/pb');
+      expect(request.url).to.equal(AD_SERVER_URL);
     });
   });
 
