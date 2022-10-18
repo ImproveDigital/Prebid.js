@@ -314,7 +314,7 @@ const ID_REQUEST = {
       const request = deepClone(basicRequest);
       request.imp = imps;
       request.id = getUniqueIdentifierStr();
-      setAdditionalConsent(request);
+      setAdditionalConsent(request, extendMode);
       if (transactionId) {
         deepSetValue(request, 'source.tid', transactionId);
       }

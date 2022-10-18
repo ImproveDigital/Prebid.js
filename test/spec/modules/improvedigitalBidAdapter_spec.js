@@ -817,6 +817,15 @@ describe('Improve Digital Adapter Tests', function () {
       expect(payload.regs.ext.gdpr).to.exist.and.to.equal(1);
       expect(payload.user.ext.consent).to.equal('CONSENT');
       expect(payload.user.ext.ConsentedProvidersSettings.consented_providers).to.exist.and.to.deep.equal('1~1.35.41.101');
+      expect(payload.user.ext.consented_providers_settings).to.not.exist;
+    });
+
+    it('should not add ConsentedProvidersSettings when extend mode disabled', function () {
+      const bidRequest = deepClone(simpleBidRequest);
+      const payload = JSON.parse(spec.buildRequests([bidRequest], bidderRequestGdpr)[0].data);
+      expect(payload.regs.ext.gdpr).to.exist.and.to.equal(1);
+      expect(payload.user.ext.consent).to.equal('CONSENT');
+      expect(payload.user.ext.ConsentedProvidersSettings).to.not.exist;
       expect(payload.user.ext.consented_providers_settings.consented_providers).to.exist.and.to.deep.equal([1, 35, 41, 101]);
     });
 
