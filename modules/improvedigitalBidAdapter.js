@@ -137,10 +137,10 @@ export const CONVERTER = ortbConverter({
       if (context.extendMode) {
         deepSetValue(imp, 'ext.prebid.storedrequest.id', '' + placementId);
       }
-    } else {
-      deepSetValue(imp, `${bidderParamsPath}.publisherId`, getBidIdParameter('publisherId', bidRequest.params));
-      deepSetValue(imp, `${bidderParamsPath}.placementKey`, getBidIdParameter('placementKey', bidRequest.params));
     }
+
+    deepSetValue(imp, `${bidderParamsPath}.publisherId`, getBidIdParameter('publisherId', bidRequest.params) || undefined);
+    deepSetValue(imp, `${bidderParamsPath}.placementKey`, getBidIdParameter('placementKey', bidRequest.params) || undefined);
     deepSetValue(imp, `${bidderParamsPath}.keyValues`, getBidIdParameter('keyValues', bidRequest.params) || undefined);
 
     return imp;
